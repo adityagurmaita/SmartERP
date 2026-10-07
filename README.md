@@ -1,0 +1,117 @@
+# SmartERP
+
+A modern student and teacher college workspace built with MongoDB, Express, React and Node. This is an independent application, not an integration with or copy of a university ERP. Screenshots use fictional demo records.
+
+## Quick start: local demo without installing MongoDB
+
+Requires Node.js 22.12+ and npm. From the repository root:
+
+```sh
+npm ci
+npm run demo
+```
+
+Open http://localhost:5173. The demo downloads a disposable MongoDB binary on first run; allow network access. It uses an in-memory database and resets whenever restarted. Use demo data only.
+
+| Role    | Email                 | Password         |
+| ------- | --------------------- | ---------------- |
+| Student | student@smarterp.demo | SmartERPdemo123! |
+| Teacher | teacher@smarterp.demo | SmartERPdemo123! |
+
+Local demo teacher registration code: `DEMO-FACULTY-2026`. These credentials are fixtures, not real accounts. Never seed them into a production database.
+
+## Persistent development setup
+
+1. Start MongoDB locally or use your own MongoDB Atlas connection.
+2. `npm ci`
+3. Copy `server/.env.example` to `server/.env`.
+4. Set `MONGODB_URI`, a randomly generated `JWT_SECRET` of at least 32 characters, and a private `TEACHER_INVITE_CODE`. Do not share or commit the real `.env`.
+5. `npm run seed` optionally inserts fictional sample users and records. Use only on a development database.
+6. `npm run dev`
+7. Open http://localhost:5173. API runs on http://localhost:4000.
+
+Teachers can create courses, enroll a registered student by email, enter attendance totals and grade points, publish assignments, upload briefs, download submissions and add grades/feedback. Students see only enrolled courses and their own submissions.
+
+## Features in this version
+
+- Student and teacher signup/sign-in. JWT session in HttpOnly cookies, bcrypt password hashes, restricted faculty invite code, rate limiting, origin checks and course-level permissions.
+- Responsive student and teacher dashboards. Light and dark themes saved to the browser.
+- Teacher assignment publishing with optional brief, PDF/TXT/DOCX upload up to 10 MB. Authenticated file download.
+- Student submission and replacement until the deadline. Replacement clears previous feedback and grade. Late submissions are blocked.
+- Faculty submission review, scores out of 100 and feedback.
+- Deadline alerts inside the dashboard and assignment list. Overdue and submitted states.
+- Attendance entry by teacher and student calculator. Advice uses **at least 75%**, not strictly greater than 75%. `floor(attended / 0.75 - total)` is the safe number of future missed classes; the recovery count assumes consecutive attendance.
+- Credit-weighted CGPA from published grade points on a 0-10 scale. Confirm your university's grading rules before using this as an official transcript. Only graded courses count; multi-semester transcript management is not yet included.
+- Campus notices.
+- Pending-work assistant in Hindi/English: instant response from live assignment/submission records. **This is a rules-based assistant, not an external AI integration.** All prompts currently return the same pending-work summary.
+- Web app manifest and mobile app-style layout. **No service worker, offline authenticated data, push notifications or background alerts yet.**
+
+## Project layout
+
+```text
+client/
+  src/App.jsx           student and faculty UI, forms, theme
+  src/style.css         responsive UI styling + Tailwind
+  src/main.jsx          React entrypoint
+  public/               app manifest and icon
+  verify.mjs            browser smoke test
+server/
+  src/app.js            Express API, auth, permissions, file routes
+  src/models.js         MongoDB models
+  src/math.js           attendance and CGPA calculations
+  src/index.js          persistent API entrypoint
+  src/seed.js            development-only fixtures
+  src/demo.js            disposable demo API
+  tests/                API integration + calculation tests
+  uploads/              private local file storage
+screenshots/            inspected desktop and mobile captures
+```
+
+## Test and build
+
+```sh
+npm test
+npm run build
+npm audit
+```
+
+API integration tests run against disposable MongoDB. Browser smoke test, with `npm run demo` already running in a separate terminal:
+
+```sh
+npx playwright install chromium
+node client/verify.mjs
+```
+
+Run browser test against a fresh demo instance; it changes demo records and captures screenshots. It checks student login, each page at mobile/desktop widths, horizontal overflow, theme, assistant, submission upload, teacher login, assignment creation and grading.
+
+## API
+
+All authenticated routes use the session cookie. Vite proxies `/api` in development.
+
+- `POST /api/auth/register`, `/login`, `/logout`; `GET /api/auth/me`
+- `GET/POST /api/courses`
+- `POST /api/courses/:id/enroll`; `GET /api/courses/:id/students`
+- `GET /api/assignments`; `POST /api/assignments?course=<id>` (multipart)
+- `POST /api/assignments/:id/submit` (multipart)
+- `GET /api/assignments/:id/submissions`, `/download`
+- `GET /api/submissions/:id/download`; `PUT /api/submissions/:id/grade`
+- `GET /api/attendance`; `PUT /api/courses/:id/attendance`
+- `GET /api/results`; `PUT /api/courses/:id/result`
+- `GET/POST /api/notices`; `POST /api/assistant`
+- `GET /api/health`
+
+## Deployment and remaining work
+
+This source is runnable locally; it is not a deployed university production system. Build the frontend with `npm run build`, serve `client/dist` through your HTTPS web server, and proxy `/api` to the backend on the same origin. Start the backend with `npm run start -w server`. Set `NODE_ENV=production`, `CLIENT_ORIGIN` to the frontend HTTPS origin, and your private environment variables. Cookies require HTTPS in production. Use a persistent upload volume and back it up with the database. Configure trusted proxy handling/rate limits for your actual infrastructure before deployment.
+
+Before use with real student records: security review, per-account teacher invitations or admin provisioning, email verification/password reset, audit trail, CSRF hardening for the deployment, file-content inspection and malware scanning, storage quotas, object storage, robust upload replacement transaction/concurrency handling, monitoring/backups, record correction/deletion, pagination and institution/semester separation. File allowlisting currently checks extensions, not content; downloaded files are attachments and should not be trusted. Notices are global within this single-institution app. There is no integration with an existing college database.
+
+Next phases: real AI provider with scoped record access, scheduled/push/email alerts, semester-aware transcripts and CGPA rules, stronger PWA/offline support, deployment and production hardening. Do not add AI credentials to frontend code; keep any provider key server-side.
+
+## Render fictional-data demo
+
+`render.yaml` defines a free web service named SmartERP. It builds React and caches the disposable MongoDB binary, then serves both frontend and API from one origin. The public demo disables registration, generates a temporary JWT secret on startup, uses fictional seeded accounts and warns against real student data. Anyone with the demo accounts can change these shared fictional records. The database and uploaded files reset on service restart. Do not use this mode for real college records.
+
+If deploying manually: build command `npm ci && npm run build && npm run prepare-demo`, start command `npm run demo:host`, environment `NODE_ENV=production`, `MONGOMS_DOWNLOAD_DIR=/opt/render/project/src/.cache/mongodb`. Choose the Free compute plan. Render free services may sleep after inactivity; check the host's current limits before deploying.
+
+The latest visual theme is based on observed plain blue panels, module grid and white layout of the requested college ERP. No university branding or real account data is included.
