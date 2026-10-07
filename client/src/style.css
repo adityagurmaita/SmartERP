@@ -2676,7 +2676,7 @@ select,
 html[data-theme="dark"] .private-dashboard-identity,
 html[data-theme="dark"] .student-profile-hero,
 html[data-theme="dark"] .profile-section-menu button {
-  background: var(--panel);
+  background: var(--surface);
   border-color: var(--line);
   color: var(--text);
 }
