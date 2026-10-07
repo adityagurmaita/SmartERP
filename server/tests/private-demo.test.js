@@ -68,7 +68,10 @@ test("separate private realm, persistent setup claim, no demo roster access", as
         $set: {
           privateProfile: {
             displayName: "Private Test Student",
-            rows: [["Family", "PRIVATE_FIXTURE_ONLY"]],
+            rows: [
+              ["Family", "PRIVATE_FIXTURE_ONLY"],
+              ["University Roll No.", "UNIV-TEST"],
+            ],
             photoDataUrl: "data:image/jpeg;base64,TEST",
           },
         },
@@ -76,6 +79,23 @@ test("separate private realm, persistent setup claim, no demo roster access", as
     );
     const own = (await p.get("/api/auth/me").expect(200)).body.user;
     assert.equal(own.profile.rows[0][1], "PRIVATE_FIXTURE_ONLY");
+    const nameAnswer = (
+      await p.post("/api/assistant").send({ message: "mera nam" }).expect(200)
+    ).body;
+    assert.match(nameAnswer.answer, /Private Test Student/);
+    const rollAnswer = (
+      await p
+        .post("/api/assistant")
+        .send({ message: "my university roll no" })
+        .expect(200)
+    ).body;
+    assert.match(rollAnswer.answer, /UNIV-TEST/);
+    assert(
+      !(
+        await admin.post("/api/assistant").send({ message: "my name" })
+      ).text.includes("Private Test Student"),
+    );
+
     const fresh = request.agent(outer);
     const logged = (
       await fresh

@@ -1132,8 +1132,9 @@ function WorkspaceApp() {
               </div>
               <h2>Your campus copilot</h2>
               <p className="muted">
-                Ask about pending work in English or Hindi. This version uses
-                your live assignments, not an external AI model.
+                Ask about your name, roll number, attendance, CGPA, fees or
+                assignments in English or Hindi. Answers use your workspace
+                records, not an external AI model.
               </p>
               <button
                 className="prompt-chip"
@@ -1181,7 +1182,7 @@ function WorkspaceApp() {
                   name="message"
                   required
                   maxLength="1000"
-                  placeholder="Ask about your pending assignments..."
+                  placeholder="Ask about your profile, attendance, grades or fees..."
                 />
                 <button className="primary" disabled={busy}>
                   Ask <ArrowUpRight size={16} />
@@ -3042,8 +3043,8 @@ function ModuleSpotlight({ tab, assignments, pending, notices }) {
       Sparkles,
       "Your work, in focus",
       "Start with what's next.",
-      "A rules-based planner for your recorded assignments.",
-      "Assignment planner",
+      "Rules-based answers from your profile and workspace records.",
+      "Profile + records",
       "English + Hindi",
     ],
   }[tab];

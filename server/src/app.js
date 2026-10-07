@@ -12,6 +12,7 @@ import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import * as defaultModels from "./models.js";
 import { attendanceAdvice, cgpa } from "./math.js";
+import { assistantIntents } from "./assistant-intents.js";
 export function createApp({
   jwtSecret,
   clientOrigin = "http://localhost:5173",
@@ -1238,25 +1239,172 @@ export function createApp({
     "/api/assistant",
     auth,
     wrap(async (req, res) => {
-      z.object({ message: z.string().min(1).max(1000) }).parse(req.body);
-      const cs = await Course.find({ students: req.user.id });
-      const as = await Assignment.find({ course: { $in: cs.map((c) => c.id) } })
-        .populate("course", "name")
-        .sort({ dueAt: 1 });
-      const ss = await Submission.find({ student: req.user.id });
-      const pending = as.filter(
-        (a) => !ss.some((s) => String(s.assignment) === a.id),
-      );
+      const { message } = z
+        .object({ message: z.string().trim().min(1).max(1000) })
+        .parse(req.body);
+      const intents = assistantIntents(message);
+      if (!intents.length)
+        return res.json({
+          mode: "rules",
+          intent: "unknown",
+          answer:
+            "I can help with your name, roll number, enrollment, attendance, results/CGPA, fees and pending assignments. Try a specific question like 'my roll no' or 'meri attendance'. I don't have a general AI connected.",
+          items: [],
+        });
+      const answers = [],
+        items = [];
+      const profile = realm === "private" ? req.user.privateProfile : null;
+      const profileRow = (pattern) =>
+        profile?.rows?.find(([label]) => pattern.test(label))?.[1];
+      const money = (paise) =>
+        new Intl.NumberFormat("en-IN", {
+          style: "currency",
+          currency: "INR",
+          maximumFractionDigits: 2,
+        }).format(paise / 100);
+      for (const intent of intents) {
+        if (intent === "name")
+          answers.push(
+            `Your name is ${profile?.displayName || req.user.name}.`,
+          );
+        if (intent === "roll") {
+          const university = /university|universiti|विश्वविद्यालय/i.test(
+            message,
+          );
+          const value = university
+            ? profileRow(/university.*roll|roll.*university/i)
+            : req.user.rollNumber ||
+              profileRow(/class.*roll|roll.*class|^roll/i);
+          answers.push(
+            value
+              ? `Your ${university ? "university" : "class"} roll number is ${value}.`
+              : `Your ${university ? "university" : "class"} roll number is not recorded in this workspace.`,
+          );
+        }
+        if (intent === "enrollment") {
+          const value =
+            profileRow(/enroll|enrol|नामांकन/i) || profile?.headerEnrollment;
+          answers.push(
+            value
+              ? `Your enrollment number is ${value}.`
+              : "Your enrollment number is not recorded in this workspace.",
+          );
+        }
+        if (
+          ["attendance", "results", "fees", "assignments"].includes(intent) &&
+          req.user.role !== "student"
+        ) {
+          answers.push(
+            "Personal academic answers are available in the student workspace. Use your staff module for class or accounts records.",
+          );
+          continue;
+        }
+        if (
+          intent === "attendance" ||
+          intent === "results" ||
+          intent === "assignments"
+        ) {
+          const cs = await Course.find({ students: req.user.id });
+          const courseFilter = {
+            course: { $in: cs.map((c) => c.id) },
+            student: req.user.id,
+          };
+          if (intent === "attendance") {
+            let rows = await Attendance.find(courseFilter)
+              .populate("course", "name code")
+              .lean();
+            const requested = cs.filter(
+              (c) =>
+                message.toLowerCase().includes(c.code.toLowerCase()) ||
+                message.toLowerCase().includes(c.name.toLowerCase()),
+            );
+            if (requested.length)
+              rows = rows.filter((r) =>
+                requested.some((c) => c.id === String(r.course._id)),
+              );
+            answers.push(
+              rows.length
+                ? "Your recorded attendance: " +
+                    rows
+                      .map((r) => {
+                        const x = attendanceAdvice(r.attended, r.total);
+                        return `${r.course.code} (${r.course.name}): ${x.percentage.toFixed(1)}% (${r.attended}/${r.total} classes). ${!r.total ? "No classes recorded yet." : x.mustAttend ? `Attend ${x.mustAttend} consecutive classes to reach 75%.` : `Safe to miss ${x.canMiss} more classes at a 75% target.`}`;
+                      })
+                      .join("\n")
+                : "No attendance is recorded for you yet.",
+            );
+          }
+          if (intent === "results") {
+            const rows = await Result.find(courseFilter)
+              .populate("course", "name code credits")
+              .lean();
+            const value = cgpa(
+              rows.map((r) => ({
+                credits: r.course.credits,
+                gradePoint: r.gradePoint,
+              })),
+            );
+            answers.push(
+              rows.length
+                ? `Your recorded credit-weighted CGPA is ${value?.toFixed(2) || "--"}/10.\n${rows.map((r) => `${r.course.code} (${r.course.name}): ${r.gradePoint.toFixed(1)}/10, ${r.course.credits} credits.`).join("\n")}\nNo semester-wise SGPA or exam marks are stored. These are workspace demo records, not official university results.`
+                : "No grade points are recorded for you yet.",
+            );
+          }
+          if (intent === "assignments") {
+            const as = await Assignment.find({
+              course: { $in: cs.map((c) => c.id) },
+            })
+              .populate("course", "name")
+              .sort({ dueAt: 1 });
+            const ss = await Submission.find({ student: req.user.id });
+            const pending = as.filter(
+              (a) => !ss.some((s) => String(s.assignment) === a.id),
+            );
+            answers.push(
+              pending.length
+                ? `Aapke ${pending.length} assignments pending hain. ${pending.map((a) => `${a.title} (${a.course.name}) - ${a.dueAt.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}${a.dueAt < new Date() ? " [overdue]" : ""}`).join("; ")}.`
+                : "Aapka koi assignment pending nahi hai. You are all caught up!",
+            );
+            items.push(
+              ...pending.map((a) => ({
+                id: a.id,
+                title: a.title,
+                dueAt: a.dueAt,
+              })),
+            );
+          }
+        }
+        if (intent === "fees") {
+          const rows = await Fee.find({ student: req.user.id }).sort({
+            dueAt: 1,
+          });
+          const total = rows.reduce((n, r) => n + r.amountPaise, 0),
+            paid = rows.reduce(
+              (n, r) => n + r.payments.reduce((s, p) => s + p.amountPaise, 0),
+              0,
+            );
+          answers.push(
+            rows.length
+              ? `Your recorded fees: total ${money(total)}, paid ${money(paid)}, balance ${money(Math.max(0, total - paid))}.\n${rows
+                  .map((r) => {
+                    const p = r.payments.reduce(
+                      (sum, x) => sum + x.amountPaise,
+                      0,
+                    );
+                    return `${r.title}: ${money(Math.max(0, r.amountPaise - p))} remaining; due ${r.dueAt.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}.`;
+                  })
+                  .join(
+                    "\n",
+                  )}\nThese are demo fee records. No real payment is made here.`
+              : "No fee records are stored for you yet.",
+          );
+        }
+      }
       res.json({
         mode: "rules",
-        answer: pending.length
-          ? `Aapke ${pending.length} assignments pending hain. ${pending.map((a) => `${a.title} (${a.course.name}) - ${a.dueAt.toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" })}${a.dueAt < new Date() ? " [overdue]" : ""}`).join("; ")}.`
-          : "Aapka koi assignment pending nahi hai. You are all caught up!",
-        items: pending.map((a) => ({
-          id: a.id,
-          title: a.title,
-          dueAt: a.dueAt,
-        })),
+        intent: intents.join(","),
+        answer: answers.join("\n\n"),
+        items,
       });
     }),
   );
