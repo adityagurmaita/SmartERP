@@ -555,29 +555,28 @@ function WorkspaceApp() {
                   .filter(
                     ([n]) =>
                       !["Dashboard", "Profile"].includes(n) &&
-                      n.toLowerCase().includes(moduleSearch.toLowerCase()),
+                      (n + " " + collegeModuleLabel(n))
+                        .toLowerCase()
+                        .includes(moduleSearch.toLowerCase()),
+                  )
+                  .sort(
+                    ([a], [b]) =>
+                      collegeModuleOrder.indexOf(a) -
+                      collegeModuleOrder.indexOf(b),
                   )
                   .map(([n, Icon]) => (
                     <button key={n} onClick={() => go(n)}>
                       <Icon size={32} />
-                      <span>
-                        {{
-                          Courses: "Academic",
-                          Fees: "Fee",
-                          Notices: "Circular",
-                          Exams: "Exam",
-                          Clubs: "Club/Committee",
-                          Hostel: "Hostel",
-                          Grievances: "Grievance",
-                        }[n] || n}
-                      </span>
+                      <span>{collegeModuleLabel(n)}</span>
                     </button>
                   ))}
               </div>
               {!navigation.some(
                 ([n]) =>
                   !["Dashboard", "Profile"].includes(n) &&
-                  n.toLowerCase().includes(moduleSearch.toLowerCase()),
+                  (n + " " + collegeModuleLabel(n))
+                    .toLowerCase()
+                    .includes(moduleSearch.toLowerCase()),
               ) && <p>No modules match. Try a different name.</p>}
             </section>
           ) : (
@@ -1664,6 +1663,33 @@ function PrivateStudentHeader({ user, onProfile }) {
     </section>
   );
 }
+const collegeModuleLabel = (n) =>
+  ({
+    Courses: "Academic",
+    Fees: "Fee",
+    Notices: "Circular",
+    Exams: "Exam",
+    Clubs: "Club/Committee",
+    Hostel: "Hostel",
+    Grievances: "Grievance",
+  })[n] || n;
+const collegeModuleOrder = [
+  "Courses",
+  "Fees",
+  "Notices",
+  "Library",
+  "Exams",
+  "Clubs",
+  "Hostel",
+  "Grievances",
+  "Applications",
+  "Assignments",
+  "Attendance",
+  "Results",
+  "Timetable",
+  "Resources",
+  "Assistant",
+];
 function StudentProfile({ user, courses, results, attendance }) {
   const [section, setSection] = useState("Personal details");
   if (user.profile)
