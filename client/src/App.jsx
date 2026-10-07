@@ -1475,6 +1475,7 @@ function Auth({ onLogin, dark, setDark }) {
 }
 
 function Fees({ teacher, user }) {
+  const [loaded, setLoaded] = useState(false);
   const [data, setData] = useState({ rows: [], students: [] });
   const [section, setSection] = useState("Fee details");
   const [semester, setSemester] = useState("All semesters");
@@ -1497,7 +1498,11 @@ function Fees({ teacher, user }) {
         : paid(f)
           ? "Part paid"
           : "Pending";
-  const refresh = () => api("/fees").then(setData);
+  const refresh = () =>
+    api("/fees").then((d) => {
+      setData(d);
+      setLoaded(true);
+    });
   useEffect(() => {
     refresh().catch((e) => setError(e.message));
   }, []);
@@ -1545,6 +1550,13 @@ function Fees({ teacher, user }) {
       setBusy(false);
     }
   }
+  if (!loaded)
+    return (
+      <section className="panel" aria-live="polite">
+        <h2>Fees</h2>
+        <p>{error || "Loading your fee records..."}</p>
+      </section>
+    );
   if (!teacher) {
     const rows = data.rows.filter(
       (f) =>
