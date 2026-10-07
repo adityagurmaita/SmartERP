@@ -96,6 +96,18 @@ export const Notice = model(
     { timestamps: true },
   ),
 );
+export const ImportPreview = model(
+  "ImportPreview",
+  new Schema(
+    {
+      actor: { type: Schema.Types.ObjectId, ref: "User" },
+      parsed: Schema.Types.Mixed,
+      expiresAt: { type: Date, index: { expires: 0 } },
+      usedAt: Date,
+    },
+    { timestamps: true },
+  ),
+);
 export const AuditLog = model(
   "AuditLog",
   new Schema(

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import StudentImport from "./StudentImport.jsx";
 export default function CollegeAdmin({
   api,
   user,
@@ -23,6 +24,7 @@ export default function CollegeAdmin({
     "Students",
     "Faculty",
     "Subjects",
+    "Import",
     "Notices",
     "Fees",
     "Requests",
@@ -571,6 +573,7 @@ export default function CollegeAdmin({
             ))}
           </>
         )}
+        {tab === "Import" && <StudentImport api={api} />}
         {tab === "Fees" && <Fees teacher={true} />}{" "}
         {tab === "Requests" && <Requests admin={true} />}
       </main>

@@ -1,4 +1,5 @@
 import express from "express";
+import { installStudentImport } from "./import-students.js";
 import { installAdmin } from "./admin.js";
 import cors from "cors";
 import helmet from "helmet";
@@ -603,6 +604,7 @@ export function createApp({
     next();
   };
   installAdmin(app, { auth, admin, wrap, fail, models });
+  installStudentImport(app, { auth, admin, wrap, fail, models, demoPublic });
   const feeReader = (req, res, next) => {
     if (!["student", "admin"].includes(req.user.role))
       return res.status(403).json({
