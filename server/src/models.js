@@ -85,3 +85,26 @@ export const Notice = model(
     { timestamps: true },
   ),
 );
+export const Fee = model(
+  "Fee",
+  new Schema(
+    {
+      student: { type: Schema.Types.ObjectId, ref: "User", required: true },
+      title: { type: String, required: true },
+      semester: { type: String, required: true },
+      amountPaise: { type: Number, required: true, min: 1 },
+      dueAt: { type: Date, required: true },
+      createdBy: { type: Schema.Types.ObjectId, ref: "User" },
+      payments: [
+        {
+          amountPaise: { type: Number, min: 1 },
+          paidAt: Date,
+          reference: String,
+          receiptNumber: String,
+          recordedBy: { type: Schema.Types.ObjectId, ref: "User" },
+        },
+      ],
+    },
+    { timestamps: true },
+  ),
+);

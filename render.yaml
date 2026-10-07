@@ -3,7 +3,7 @@ services:
     name: SmartERP
     runtime: node
     plan: free
-    buildCommand: npm ci && npm run build && npm run prepare-demo
+    buildCommand: npm ci --include=dev && npm run build && npm run prepare-demo
     startCommand: npm run demo:host
     healthCheckPath: /api/health
     envVars:

@@ -18,6 +18,7 @@ import {
   Attendance,
   Result,
   Notice,
+  Fee,
 } from "./models.js";
 import { attendanceAdvice, cgpa } from "./math.js";
 export function createApp({
@@ -34,12 +35,10 @@ export function createApp({
   if (production) app.set("trust proxy", 1);
   if (demoPublic)
     app.use("/api/auth/register", (_req, res) =>
-      res
-        .status(403)
-        .json({
-          message:
-            "Registration is disabled in this public fictional-data demo. Use the demo accounts.",
-        }),
+      res.status(403).json({
+        message:
+          "Registration is disabled in this public fictional-data demo. Use the demo accounts.",
+      }),
     );
   app.use(helmet());
   app.use(cors({ origin: clientOrigin, credentials: true }));
@@ -550,6 +549,144 @@ export function createApp({
       res
         .status(201)
         .json(await Notice.create({ ...b, createdBy: req.user.id }));
+    }),
+  );
+  const feeScope = async (req) => {
+    if (req.user.role === "student") return [req.user.id];
+    const courses = await Course.find({ teacher: req.user.id });
+    return [...new Set(courses.flatMap((c) => c.students.map(String)))];
+  };
+  const feeAccess = async (req, id) => {
+    if (!/^[a-f\d]{24}$/i.test(id || "")) fail(404, "Fee record not found");
+    const fee = await Fee.findById(id).populate(
+      "student",
+      "name rollNumber email",
+    );
+    if (!fee) fail(404, "Fee record not found");
+    if (!(await feeScope(req)).includes(String(fee.student._id)))
+      fail(403, "Fee access denied");
+    return fee;
+  };
+  const feeBody = z.object({
+    title: z.string().trim().min(1).max(100),
+    semester: z.string().trim().min(1).max(80),
+    amountPaise: z.number().int().positive().max(100000000),
+    dueAt: z.string().datetime(),
+  });
+  app.get(
+    "/api/fees",
+    auth,
+    wrap(async (req, res) => {
+      const ids = await feeScope(req);
+      res.json({
+        rows: await Fee.find({ student: { $in: ids } })
+          .populate("student", "name rollNumber email")
+          .sort({ dueAt: 1 }),
+        students:
+          req.user.role === "teacher"
+            ? await User.find({ _id: { $in: ids } }).select(
+                "name rollNumber email",
+              )
+            : [],
+      });
+    }),
+  );
+  app.post(
+    "/api/fees",
+    auth,
+    teacher,
+    wrap(async (req, res) => {
+      const body = feeBody
+        .extend({ student: z.string().regex(/^[a-f\d]{24}$/i) })
+        .parse(req.body);
+      if (!(await feeScope(req)).includes(body.student))
+        fail(403, "Student is not enrolled in your courses");
+      res
+        .status(201)
+        .json(await Fee.create({ ...body, createdBy: req.user.id }));
+    }),
+  );
+  app.patch(
+    "/api/fees/:id",
+    auth,
+    teacher,
+    wrap(async (req, res) => {
+      const fee = await feeAccess(req, req.params.id);
+      const body = feeBody.parse(req.body);
+      const paid = fee.payments.reduce((sum, p) => sum + p.amountPaise, 0);
+      if (body.amountPaise < paid)
+        fail(400, "Fee total cannot be below recorded payments");
+      Object.assign(fee, body);
+      await fee.save();
+      res.json(fee);
+    }),
+  );
+  app.post(
+    "/api/fees/:id/payments",
+    auth,
+    teacher,
+    wrap(async (req, res) => {
+      const fee = await feeAccess(req, req.params.id);
+      const body = z
+        .object({
+          amountPaise: z.number().int().positive().max(100000000),
+          paidAt: z.string().datetime(),
+          reference: z.string().trim().min(1).max(100),
+        })
+        .parse(req.body);
+      if (new Date(body.paidAt) > new Date())
+        fail(400, "Payment date cannot be in the future");
+      const payment = {
+        ...body,
+        receiptNumber: "DEMO-" + randomUUID().slice(0, 8).toUpperCase(),
+        recordedBy: req.user.id,
+      };
+      const saved = await Fee.findOneAndUpdate(
+        {
+          _id: fee._id,
+          $expr: {
+            $gte: [
+              {
+                $subtract: ["$amountPaise", { $sum: "$payments.amountPaise" }],
+              },
+              body.amountPaise,
+            ],
+          },
+        },
+        { $push: { payments: payment } },
+        { returnDocument: "after" },
+      );
+      if (!saved) fail(400, "Payment exceeds remaining balance");
+      res.status(201).json(saved);
+    }),
+  );
+  app.get(
+    "/api/fees/:id/receipts/:payment",
+    auth,
+    wrap(async (req, res) => {
+      const fee = await feeAccess(req, req.params.id);
+      const payment = fee.payments.id(req.params.payment);
+      if (!payment) fail(404, "Receipt not found");
+      res
+        .type("text/plain")
+        .attachment(payment.receiptNumber + ".txt")
+        .send(
+          [
+            "SMARTERP FICTIONAL DEMO RECEIPT",
+            "NOT AN OFFICIAL UNIVERSITY RECEIPT. NO REAL PAYMENT WAS PROCESSED.",
+            "Receipt: " + payment.receiptNumber,
+            "Student: " +
+              fee.student.name +
+              " (" +
+              (fee.student.rollNumber || "") +
+              ")",
+            "Fee: " + fee.title,
+            "Semester: " + fee.semester,
+            "Recorded amount: INR " + (payment.amountPaise / 100).toFixed(2),
+            "Recorded date: " + payment.paidAt.toISOString(),
+            "Reference: " + payment.reference,
+          ].join("\n"),
+        );
     }),
   );
   app.post(

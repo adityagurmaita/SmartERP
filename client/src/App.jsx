@@ -22,12 +22,14 @@ import {
   BookOpen,
   Sparkles,
   Bell,
+  Wallet,
 } from "lucide-react";
 const navigation = [
   ["Dashboard", LayoutDashboard],
   ["Assignments", ClipboardList],
   ["Attendance", CalendarCheck],
   ["Results", ChartNoAxesCombined],
+  ["Fees", Wallet],
   ["Notices", Megaphone],
   ["Assistant", MessageSquare],
   ["Courses", BookOpen],
@@ -677,6 +679,7 @@ export default function App() {
               </div>
             </>
           )}
+          {tab === "Fees" && <Fees teacher={teacher} />}
           {tab === "Results" && (
             <section className="panel">
               <div className="panel-title">
@@ -1434,5 +1437,343 @@ function Auth({ onLogin, dark, setDark }) {
         </div>
       </section>
     </div>
+  );
+}
+
+function Fees({ teacher }) {
+  const [data, setData] = useState({ rows: [], students: [] });
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState(null);
+  const money = (n) =>
+    new Intl.NumberFormat("en-IN", {
+      style: "currency",
+      currency: "INR",
+    }).format(n / 100);
+  const paid = (f) => f.payments.reduce((sum, p) => sum + p.amountPaise, 0);
+  const balance = (f) => f.amountPaise - paid(f);
+  const state = (f) =>
+    balance(f) === 0
+      ? "Paid"
+      : new Date(f.dueAt) < new Date()
+        ? "Overdue"
+        : paid(f)
+          ? "Part paid"
+          : "Pending";
+  const refresh = () => api("/fees").then(setData);
+  useEffect(() => {
+    refresh().catch((e) => setError(e.message));
+  }, []);
+  const total = data.rows.reduce((n, f) => n + f.amountPaise, 0);
+  const collected = data.rows.reduce((n, f) => n + paid(f), 0);
+  const overdue = data.rows
+    .filter((f) => state(f) === "Overdue")
+    .reduce((n, f) => n + balance(f), 0);
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    const fd = new FormData(e.currentTarget);
+    const amountPaise = Math.round(Number(fd.get("amount")) * 100);
+    try {
+      if (form.type === "payment") {
+        await api(`/fees/${form.fee._id}/payments`, {
+          method: "POST",
+          body: JSON.stringify({
+            amountPaise,
+            paidAt: new Date(
+              fd.get("paidAt") + "T00:00:00+05:30",
+            ).toISOString(),
+            reference: fd.get("reference"),
+          }),
+        });
+      } else {
+        const body = {
+          title: fd.get("title"),
+          semester: fd.get("semester"),
+          amountPaise,
+          dueAt: new Date(fd.get("dueAt") + "T23:59:59+05:30").toISOString(),
+        };
+        if (form.type === "new") body.student = fd.get("student");
+        await api(form.type === "new" ? "/fees" : `/fees/${form.fee._id}`, {
+          method: form.type === "new" ? "POST" : "PATCH",
+          body: JSON.stringify(body),
+        });
+      }
+      await refresh();
+      setForm(null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <>
+      <section className="panel">
+        <div className="panel-title">
+          <h2>{teacher ? "Student fee records" : "Your fees"}</h2>
+          {teacher && (
+            <button
+              className="primary"
+              onClick={() => {
+                setError("");
+                setForm({ type: "new" });
+              }}
+            >
+              <Plus size={16} />
+              Add fee record
+            </button>
+          )}
+        </div>
+        <p className="muted">
+          Fictional fee ledger only. No payment gateway, real charge or official
+          university receipt. Records reset with the demo.
+        </p>
+        <div className="fees-summary">
+          <Stat
+            icon={Wallet}
+            label="Total fees"
+            value={money(total)}
+            note="Listed fee items"
+          />
+          <Stat
+            icon={CheckCircle2}
+            label="Recorded paid"
+            value={money(collected)}
+            note="Demo ledger entries"
+          />
+          <Stat
+            icon={Clock}
+            label="Pending dues"
+            value={money(total - collected)}
+            note={overdue ? `${money(overdue)} overdue` : "No overdue balance"}
+          />
+        </div>
+        {error && (
+          <p role="alert" className="fee-error">
+            {error}
+          </p>
+        )}
+        {!data.rows.length && <Empty>No fee records yet.</Empty>}
+        <div className="fee-grid">
+          {data.rows.map((f) => (
+            <article className="panel fee-card" key={f._id}>
+              <div className="panel-title">
+                <h2>{f.title}</h2>
+                <Badge tone={state(f) === "Paid" ? "green" : ""}>
+                  {state(f)}
+                </Badge>
+              </div>
+              <p className="muted">
+                {f.semester}
+                {teacher
+                  ? ` · ${f.student.name} (${f.student.rollNumber || "Student"})`
+                  : ""}
+              </p>
+              <dl className="fee-values">
+                <div>
+                  <dt>Total</dt>
+                  <dd>{money(f.amountPaise)}</dd>
+                </div>
+                <div>
+                  <dt>Recorded paid</dt>
+                  <dd>{money(paid(f))}</dd>
+                </div>
+                <div>
+                  <dt>Balance</dt>
+                  <dd>{money(balance(f))}</dd>
+                </div>
+                <div>
+                  <dt>Due date</dt>
+                  <dd>
+                    {new Date(f.dueAt).toLocaleDateString("en-IN", {
+                      timeZone: "Asia/Kolkata",
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })}
+                  </dd>
+                </div>
+              </dl>
+              {teacher && (
+                <div className="fee-actions">
+                  <button
+                    className="small-btn"
+                    onClick={() => {
+                      setError("");
+                      setForm({ type: "edit", fee: f });
+                    }}
+                  >
+                    Edit fee
+                  </button>
+                  {balance(f) > 0 && (
+                    <button
+                      className="primary"
+                      onClick={() => {
+                        setError("");
+                        setForm({ type: "payment", fee: f });
+                      }}
+                    >
+                      Record demo payment
+                    </button>
+                  )}
+                </div>
+              )}
+              <h3>Payment history</h3>
+              {!f.payments.length ? (
+                <p className="muted">No payments recorded.</p>
+              ) : (
+                f.payments.map((p) => (
+                  <div className="fee-payment" key={p._id}>
+                    <div>
+                      <strong>{money(p.amountPaise)}</strong>
+                      <p className="muted">
+                        {date(p.paidAt)} · {p.reference}
+                      </p>
+                      <small>{p.receiptNumber}</small>
+                    </div>
+                    <a
+                      className="small-btn"
+                      href={`/api/fees/${f._id}/receipts/${p._id}`}
+                      download
+                    >
+                      <Download size={15} /> Demo receipt
+                    </a>
+                  </div>
+                ))
+              )}
+            </article>
+          ))}
+        </div>
+      </section>
+      {form && (
+        <Modal
+          title={
+            form.type === "payment"
+              ? "Record demo payment"
+              : form.type === "new"
+                ? "Add fee record"
+                : "Edit fee record"
+          }
+          onClose={() => {
+            if (!busy) setForm(null);
+          }}
+        >
+          <form onSubmit={submit} className="fee-form">
+            {form.type === "payment" ? (
+              <>
+                <p className="muted">
+                  Ledger entry only. Nothing will be charged. Remaining:{" "}
+                  {money(balance(form.fee))}
+                </p>
+                <label>
+                  Recorded amount (INR)
+                  <input
+                    name="amount"
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    max={balance(form.fee) / 100}
+                    required
+                  />
+                </label>
+                <label>
+                  Payment date
+                  <input
+                    name="paidAt"
+                    type="date"
+                    required
+                    defaultValue={new Intl.DateTimeFormat("en-CA", {
+                      timeZone: "Asia/Kolkata",
+                    }).format(new Date())}
+                    max={new Intl.DateTimeFormat("en-CA", {
+                      timeZone: "Asia/Kolkata",
+                    }).format(new Date())}
+                  />
+                </label>
+                <label>
+                  Demo reference
+                  <input
+                    name="reference"
+                    maxLength={100}
+                    required
+                    placeholder="Fictional ledger reference"
+                  />
+                </label>
+              </>
+            ) : (
+              <>
+                {form.type === "new" && (
+                  <label>
+                    Student
+                    <select name="student" required>
+                      <option value="">Choose enrolled student</option>
+                      {data.students.map((st) => (
+                        <option key={st._id} value={st._id}>
+                          {st.name} · {st.rollNumber}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                )}
+                <label>
+                  Fee title
+                  <input
+                    name="title"
+                    maxLength={100}
+                    defaultValue={form.fee?.title}
+                    required
+                  />
+                </label>
+                <label>
+                  Semester
+                  <input
+                    name="semester"
+                    maxLength={80}
+                    defaultValue={form.fee?.semester || "Semester 5"}
+                    required
+                  />
+                </label>
+                <label>
+                  Total amount (INR)
+                  <input
+                    name="amount"
+                    type="number"
+                    step="0.01"
+                    min={form.fee ? Math.max(0.01, paid(form.fee) / 100) : 0.01}
+                    defaultValue={form.fee ? form.fee.amountPaise / 100 : ""}
+                    required
+                  />
+                </label>
+                <label>
+                  Due date
+                  <input
+                    name="dueAt"
+                    type="date"
+                    defaultValue={
+                      form.fee
+                        ? new Intl.DateTimeFormat("en-CA", {
+                            timeZone: "Asia/Kolkata",
+                          }).format(new Date(form.fee.dueAt))
+                        : ""
+                    }
+                    required
+                  />
+                </label>
+              </>
+            )}
+            {error && (
+              <p role="alert" className="fee-error">
+                {error}
+              </p>
+            )}
+            <button className="primary" disabled={busy}>
+              {busy ? "Saving..." : "Save demo record"}
+            </button>
+          </form>
+        </Modal>
+      )}
+    </>
   );
 }

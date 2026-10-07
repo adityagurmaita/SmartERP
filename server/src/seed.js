@@ -8,6 +8,7 @@ import {
   Attendance,
   Result,
   Notice,
+  Fee,
 } from "./models.js";
 export async function seed() {
   if (await User.exists({ email: "student@smarterp.demo" })) return;
@@ -91,6 +92,49 @@ export async function seed() {
     ],
   ])
     await Notice.create({ title, body, createdBy: teacher.id });
+  await Fee.create({
+    student: student.id,
+    title: "Tuition fee",
+    semester: "Semester 5",
+    amountPaise: 6500000,
+    dueAt: new Date(Date.now() + 7 * 864e5),
+    createdBy: teacher.id,
+    payments: [
+      {
+        amountPaise: 4000000,
+        paidAt: new Date(Date.now() - 10 * 864e5),
+        reference: "Fictional demo bank entry",
+        receiptNumber: "DEMO-TUITION-001",
+        recordedBy: teacher.id,
+      },
+    ],
+  });
+  await Fee.create({
+    student: student.id,
+    title: "Examination fee",
+    semester: "Semester 5",
+    amountPaise: 250000,
+    dueAt: new Date(Date.now() - 2 * 864e5),
+    createdBy: teacher.id,
+    payments: [],
+  });
+  await Fee.create({
+    student: student.id,
+    title: "Library fee",
+    semester: "Semester 5",
+    amountPaise: 100000,
+    dueAt: new Date(Date.now() - 15 * 864e5),
+    createdBy: teacher.id,
+    payments: [
+      {
+        amountPaise: 100000,
+        paidAt: new Date(Date.now() - 16 * 864e5),
+        reference: "Fictional demo entry",
+        receiptNumber: "DEMO-LIBRARY-001",
+        recordedBy: teacher.id,
+      },
+    ],
+  });
   console.log(
     "Demo seed ready: student@smarterp.demo / teacher@smarterp.demo; password SmartERPdemo123!",
   );
