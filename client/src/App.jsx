@@ -773,27 +773,6 @@ function WorkspaceApp() {
                 )}
             </section>
           )}
-          {tab === "Attendance" &&
-            user.privateWorkspace &&
-            attendance.some((a) => a.percentage < 75) && (
-              <button
-                className="attendance-warning"
-                onClick={() => go("Attendance")}
-              >
-                <CalendarCheck size={18} />
-                <span>
-                  <strong>Attendance needs attention</strong>
-                  <small>
-                    {attendance
-                      .filter((a) => a.percentage < 75)
-                      .map((a) => a.course.code)
-                      .join(", ")}{" "}
-                    below 75%. View your catch-up plan.
-                  </small>
-                </span>
-                <ChevronRight size={16} />
-              </button>
-            )}
           {tab === "Profile" && user.privateWorkspace && (
             <StudentProfile
               user={user}
@@ -1012,15 +991,11 @@ function WorkspaceApp() {
               {assignmentList(assignments)}
             </section>
           )}
-          {tab === "Attendance" && (
+          {tab === "Attendance" && user.privateWorkspace && (
+            <AttendanceStudio attendance={attendance} />
+          )}
+          {tab === "Attendance" && !user.privateWorkspace && (
             <>
-              {user.privateWorkspace && (
-                <Analytics
-                  attendance={attendance}
-                  results={results}
-                  section="attendance"
-                />
-              )}
               <section className="panel calculator">
                 <h2>Plan your next class</h2>
                 <p>
@@ -2955,6 +2930,179 @@ function Fees({ teacher, user }) {
         </Modal>
       )}
     </>
+  );
+}
+function AttendanceStudio({ attendance }) {
+  const total = attendance.reduce((sum, a) => sum + a.total, 0);
+  const attended = attendance.reduce((sum, a) => sum + a.attended, 0);
+  const overall = total ? (attended / total) * 100 : 0;
+  const needsAttention = attendance.filter((a) => a.total && a.percentage < 75);
+  const onTrack = attendance.filter(
+    (a) => a.total && a.percentage >= 75,
+  ).length;
+  const themes = ["ocean", "sunset", "violet", "mint"];
+  return (
+    <div className="attendance-studio">
+      <section className="attendance-hero">
+        <div className="attendance-hero-top">
+          <div>
+            <span className="studio-eyebrow">
+              <CalendarCheck size={14} /> CLASS CHECK-IN
+            </span>
+            <h2>Attendance health</h2>
+            <p>Small steps. A stronger semester.</p>
+          </div>
+          <span className="target-pill">75% target</span>
+        </div>
+        <div className="attendance-hero-body">
+          <div
+            className="attendance-ring"
+            style={{ "--progress": `${overall}%` }}
+            role="img"
+            aria-label={`Overall attendance ${overall.toFixed(1)} percent`}
+          >
+            <div>
+              <strong>
+                {total ? overall.toFixed(1) : "--"}
+                <small>%</small>
+              </strong>
+              <span>Overall</span>
+            </div>
+          </div>
+          <div className="attendance-hero-facts">
+            <strong>
+              {attended}
+              <span> / {total}</span>
+            </strong>
+            <p>Classes attended</p>
+            <span className="hero-status">
+              <CheckCircle2 size={14} /> {onTrack} of {attendance.length}{" "}
+              subjects on track
+            </span>
+          </div>
+        </div>
+        <p className="attendance-hero-foot">
+          Recorded classes only · subject target: 75%
+        </p>
+      </section>
+      {needsAttention.length > 0 && (
+        <button
+          className="attendance-catchup"
+          onClick={() =>
+            document
+              .getElementById("attendance-subjects")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" })
+          }
+        >
+          <span className="catchup-icon">
+            <Sparkles size={19} />
+          </span>
+          <span>
+            <strong>Let's get you back on track</strong>
+            <small>
+              {needsAttention.map((a) => a.course.code).join(", ")} below 75%.
+              Your plan is below.
+            </small>
+          </span>
+          <ChevronRight size={18} />
+        </button>
+      )}
+      <div className="attendance-section-label" id="attendance-subjects">
+        <h2>Your subjects</h2>
+        <span>{attendance.length} subjects</span>
+      </div>
+      <div className="attendance-subject-grid">
+        {attendance.map((a, i) => (
+          <section
+            className={`attendance-subject ${themes[i % themes.length]}`}
+            key={a._id}
+          >
+            <div className="subject-topline">
+              <span className="subject-code">
+                <BookOpen size={14} /> {a.course.code}
+              </span>
+              <span
+                className={`subject-status ${a.mustAttend ? "recover" : "safe"}`}
+              >
+                {a.mustAttend
+                  ? "Needs attention"
+                  : a.total
+                    ? "On track"
+                    : "No classes yet"}
+              </span>
+            </div>
+            <h3>{a.course.name}</h3>
+            <div className="subject-value-row">
+              <strong>
+                {a.percentage.toFixed(1)}
+                <small>%</small>
+              </strong>
+              <span>
+                {a.attended}
+                <b> / {a.total}</b>
+                <small>classes attended</small>
+              </span>
+            </div>
+            <div
+              className="subject-progress"
+              role="img"
+              aria-label={`${a.course.code} ${a.percentage.toFixed(1)} percent attendance, target 75 percent`}
+            >
+              <i
+                style={{
+                  width: `${Math.max(0, Math.min(100, a.percentage))}%`,
+                }}
+              />
+              <b />
+            </div>
+            <div className="subject-progress-label">
+              <span>0%</span>
+              <span>75% target</span>
+              <span>100%</span>
+            </div>
+            <div
+              className={`subject-plan ${a.mustAttend ? "recover" : "safe"}`}
+            >
+              {a.mustAttend ? (
+                <CalendarCheck size={17} />
+              ) : (
+                <CheckCircle2 size={17} />
+              )}
+              <span>
+                {a.mustAttend ? (
+                  <>
+                    Attend <strong>{a.mustAttend} consecutive classes</strong>{" "}
+                    to reach 75%.
+                  </>
+                ) : (
+                  <>
+                    Safe to miss <strong>{a.canMiss} more classes</strong>.
+                  </>
+                )}
+              </span>
+            </div>
+          </section>
+        ))}
+        {!attendance.length && (
+          <Empty>Attendance will appear once your teacher records it.</Empty>
+        )}
+      </div>
+      <section className="panel calculator attendance-planner">
+        <div className="planner-title">
+          <span>
+            <Sparkles size={21} />
+          </span>
+          <div>
+            <h2>Plan your next class</h2>
+            <p>A little planning keeps you ahead.</p>
+          </div>
+        </div>
+        <AttendanceCalculator />
+        <p className="planner-footnote">
+          Calculated from attended and total classes at a 75% target.
+        </p>
+      </section>
+    </div>
   );
 }
 function Analytics({ attendance, results, section }) {
