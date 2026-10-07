@@ -3724,3 +3724,109 @@ html[data-theme="dark"] .attendance-warning {
     padding: 23px;
   }
 }
+/* Additive college administration workspace. Student layout is unchanged. */
+.college-admin .section-menu {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 24px 0;
+}
+.college-admin .section-menu .selected {
+  background: #2563eb;
+  color: white;
+}
+.college-admin .topbar {
+  gap: 12px;
+  flex-wrap: wrap;
+  height: auto;
+  min-height: 70px;
+  padding: 16px 24px;
+}
+.college-admin .topbar > div {
+  display: flex;
+  gap: 8px;
+}
+.college-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.college-stats h2 {
+  font-size: 36px;
+  margin: 8px 0;
+}
+.college-admin .panel {
+  margin-bottom: 20px;
+}
+.college-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.college-form > div,
+.college-enroll {
+  grid-column: 1/-1;
+}
+.college-enroll {
+  border: 1px solid var(--border);
+  padding: 16px;
+  border-radius: 12px;
+  max-height: 260px;
+  overflow: auto;
+}
+.college-enroll label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 8px 0;
+}
+.college-enroll input {
+  width: 18px;
+  height: 18px;
+}
+.college-admin td {
+  vertical-align: middle;
+}
+.college-admin td .small-btn {
+  margin: 4px;
+}
+.college-admin .block {
+  display: block;
+}
+.college-admin .panel-title {
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.college-admin label select {
+  width: 100%;
+  padding: 12px;
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border);
+}
+@media (max-width: 640px) {
+  .college-stats {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 10px;
+  }
+  .college-form {
+    grid-template-columns: 1fr;
+  }
+  .college-admin .topbar {
+    padding: 12px;
+  }
+  .college-admin .admin-fees {
+    padding: 16px;
+  }
+  .college-admin .panel {
+    padding: 18px;
+  }
+  .college-admin .table-wrap {
+    overflow-x: auto;
+  }
+  .college-admin table {
+    min-width: 600px;
+  }
+}

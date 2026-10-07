@@ -124,7 +124,7 @@ The latest visual theme is based on observed plain blue panels, module grid and 
 
 Clean page-based navigation with browser history and direct module paths; separate student fee subsections and library menus; day-based weekly timetable; credit-weighted grade and recorded attendance charts; fictional exam datesheet, seating and calendar-file export. Faculty can add classes and exams for their courses. Class time/course and room overlaps are rejected. Students can renew their own issued books once before the due date.
 
-Library issue/return endpoints are admin-only; the accounts-admin UI remains fee-focused. The demo does not charge fines, send background reminders or give general AI to shared-demo accounts. Attendance and grade charts describe existing records, not invented semester trends.
+Library issue/return endpoints are admin-only; the college-admin UI includes account and subject management alongside fees. The demo does not charge fines, send background reminders or give general AI to shared-demo accounts. Attendance and grade charts describe existing records, not invented semester trends.
 
 ### Student simulated checkout
 
@@ -149,3 +149,11 @@ Set PRIVATE_MONGODB_URI only in the host's private environment to use a separate
 ## General AI configuration
 
 Set `GROQ_API_KEY` server-side to enable general questions in the isolated private workspace. The default model is `openai/gpt-oss-20b`; `GROQ_MODEL` can override it. Public shared-demo accounts cannot call Groq. Free-tier limits and timeouts show an unavailable message; local record answers remain available. No browsing, tool execution or record mutations are offered by the AI.
+
+## College administration (additive workspace)
+
+Sign in to the fictional demo as `admin@smarterp.demo` with the demo password shown on the login page. The college workspace includes student/faculty accounts, account activation, subject allocation and enrollment, campus notices, fees, request review and an admin activity log. Faculty notices are scoped to an assigned subject; campus-wide notices are published by administrators. Faculty can manage attendance, assignments and grades only for their own subjects.
+
+For a real deployment, use the persistent MongoDB/API entry point (`server/src/index.js`), configure the client origin and a private JWT secret, and supply `ADMIN_EMAIL`, `ADMIN_NAME`, `ADMIN_PASSWORD` through private hosting environment settings. Bootstrap creates a new administrator only. It never resets an existing account password, and faculty self-registration is disabled in production. Do not put secrets in this repository. The free hosted demo remains fictional and disposable; do not upload real college data there. The owner's separate private student realm stays separate.
+
+Passwords for existing accounts are not editable in the admin panel. Deactivate an account to stop its sessions without deleting its academic history. A production rollout still needs college-approved authentication, audited operational procedures, backups, upload storage and a data-processing policy.

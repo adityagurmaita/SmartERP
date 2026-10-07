@@ -129,7 +129,11 @@ test("auth, permissions, enrollment, assignment upload, submission, grade and as
       .expect(400);
     await teacher
       .post("/api/notices")
-      .send({ title: "Exam notice", body: "Revision session on Friday" })
+      .send({
+        title: "Exam notice",
+        body: "Revision session on Friday",
+        course: c._id,
+      })
       .expect(201);
     assert.equal((await student.get("/api/notices")).body.length, 1);
     await student.post("/api/auth/logout").expect(200);

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import CollegeAdmin from "./CollegeAdmin.jsx";
 import {
   Settings,
   UserRound,
@@ -225,53 +226,18 @@ function WorkspaceApp() {
   if (!user) return <Auth onLogin={setUser} dark={dark} setDark={setDark} />;
   if (user.role === "admin")
     return (
-      <div className="admin-workspace">
-        <header className="topbar">
-          <strong>SmartERP · Accounts admin</strong>
-          <div>
-            <button className="small-btn" onClick={() => setDark(!dark)}>
-              Toggle dark mode
-            </button>
-            <button
-              className="small-btn"
-              onClick={async () => {
-                await api("/auth/logout", { method: "POST" });
-                setUser(null);
-              }}
-            >
-              Sign out
-            </button>
-          </div>
-        </header>
-        <main className="admin-fees">
-          <div className="demo-warning">
-            {user.privateWorkspace
-              ? "Private student workspace. Only your login can access these records. Academic activity and fees are demo records. Public demo admin review is unavailable. Uploaded files may reset; do not upload real documents."
-              : "Fictional-data demo. Do not enter real student information. Demo changes may be reset."}
-          </div>
-          <nav className="section-menu" aria-label="Admin sections">
-            {["Fees", "Requests"].map((n) => (
-              <button
-                className="small-btn"
-                key={n}
-                onClick={() => {
-                  history.pushState({}, "", "/" + n);
-                  setTab(n);
-                }}
-              >
-                {n}
-              </button>
-            ))}
-          </nav>
-          <h1>{tab === "Requests" ? "Request review" : "Fees"}</h1>
-          <p className="muted">{user.name} · Demo admin workspace</p>
-          {tab === "Requests" ? (
-            <RequestWorkspace admin={true} />
-          ) : (
-            <Fees teacher={true} />
-          )}
-        </main>
-      </div>
+      <CollegeAdmin
+        api={api}
+        user={user}
+        dark={dark}
+        setDark={setDark}
+        onLogout={async () => {
+          await api("/auth/logout", { method: "POST" });
+          setUser(null);
+        }}
+        Fees={Fees}
+        Requests={RequestWorkspace}
+      />
     );
   const teacher = user.role === "teacher",
     pending = assignments.filter((a) => !a.submission),
@@ -1384,6 +1350,17 @@ function WorkspaceApp() {
               }}
             >
               <label>
+                Class subject
+                <select name="course" required>
+                  <option value="">Choose your subject</option>
+                  {courses.map((c) => (
+                    <option key={c._id} value={c._id}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
                 Title
                 <input name="title" minLength="3" maxLength="120" required />
               </label>
@@ -1971,7 +1948,7 @@ function Auth({ onLogin, dark, setDark }) {
           <h1>{register ? "Join your campus" : "Welcome back"}</h1>
           <p className="muted">
             {register
-              ? "Create your student or faculty account."
+              ? "Create your student account. Faculty accounts are created by the college administrator."
               : "Demo: student@smarterp.demo, teacher@smarterp.demo or admin@smarterp.demo. Password: SmartERPdemo123!"}
           </p>
           <form
@@ -1996,22 +1973,6 @@ function Auth({ onLogin, dark, setDark }) {
           >
             {register && (
               <>
-                <div className="role-choice">
-                  <button
-                    type="button"
-                    className={role === "student" ? "selected" : ""}
-                    onClick={() => setRole("student")}
-                  >
-                    Student
-                  </button>
-                  <button
-                    type="button"
-                    className={role === "teacher" ? "selected" : ""}
-                    onClick={() => setRole("teacher")}
-                  >
-                    Teacher
-                  </button>
-                </div>
                 <label>
                   Full name
                   <input

@@ -1,11 +1,17 @@
 import "dotenv/config";
 import mongoose from "mongoose";
+import { bootstrapAdmin } from "./admin.js";
+import * as models from "./models.js";
 import { createApp } from "./app.js";
 if (!process.env.MONGODB_URI) throw new Error("Set MONGODB_URI in server/.env");
 await mongoose.connect(process.env.MONGODB_URI);
+await bootstrapAdmin(models);
 const app = createApp({
   jwtSecret: process.env.JWT_SECRET,
-  teacherCode: process.env.TEACHER_INVITE_CODE,
+  teacherCode:
+    process.env.NODE_ENV === "production"
+      ? undefined
+      : process.env.TEACHER_INVITE_CODE,
   clientOrigin: process.env.CLIENT_ORIGIN,
   production: process.env.NODE_ENV === "production",
 });

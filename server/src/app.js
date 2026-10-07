@@ -1,4 +1,5 @@
 import express from "express";
+import { installAdmin } from "./admin.js";
 import cors from "cors";
 import helmet from "helmet";
 import rateLimit from "express-rate-limit";
@@ -122,7 +123,7 @@ export function createApp({
       req.user = await User.findById(data.sub).select(
         realm === "private" ? "+privateProfile" : "",
       );
-      if (!req.user) throw Error();
+      if (!req.user || req.user.active === false) throw Error();
     } catch {
       fail(401, "Please sign in");
     }
@@ -218,7 +219,11 @@ export function createApp({
       const u = await User.findOne({ email: b.email }).select(
         realm === "private" ? "+passwordHash +privateProfile" : "+passwordHash",
       );
-      if (!u || !(await bcrypt.compare(b.password, u.passwordHash)))
+      if (
+        !u ||
+        u.active === false ||
+        !(await bcrypt.compare(b.password, u.passwordHash))
+      )
         fail(401, "Email or password is incorrect");
       loginResponse(res, u);
     }),
@@ -549,14 +554,28 @@ export function createApp({
   app.get(
     "/api/notices",
     auth,
-    wrap(async (_req, res) =>
+    wrap(async (req, res) => {
+      const courses = await Course.find(
+        req.user.role === "teacher"
+          ? { teacher: req.user.id }
+          : { students: req.user.id },
+      ).select("_id");
+      const scope =
+        req.user.role === "admin"
+          ? {}
+          : {
+              $or: [
+                { course: null },
+                { course: { $in: courses.map((c) => c.id) } },
+              ],
+            };
       res.json(
-        await Notice.find()
+        await Notice.find(scope)
           .sort({ createdAt: -1 })
           .limit(30)
           .populate("createdBy", "name"),
-      ),
-    ),
+      );
+    }),
   );
   app.post(
     "/api/notices",
@@ -567,8 +586,10 @@ export function createApp({
         .object({
           title: z.string().trim().min(3).max(120),
           body: z.string().trim().min(3).max(3000),
+          course: z.string().regex(/^[a-f\d]{24}$/i),
         })
         .parse(req.body);
+      await courseAccess(req, b.course);
       res
         .status(201)
         .json(await Notice.create({ ...b, createdBy: req.user.id }));
@@ -581,6 +602,7 @@ export function createApp({
         .json({ message: "Accounts admin access required" });
     next();
   };
+  installAdmin(app, { auth, admin, wrap, fail, models });
   const feeReader = (req, res, next) => {
     if (!["student", "admin"].includes(req.user.role))
       return res.status(403).json({

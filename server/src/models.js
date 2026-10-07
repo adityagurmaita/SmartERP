@@ -13,6 +13,10 @@ export const User = model(
         required: true,
       },
       rollNumber: String,
+      department: String,
+      semester: { type: Number, min: 1, max: 12 },
+      section: String,
+      active: { type: Boolean, default: true },
       privateProfile: { type: Schema.Types.Mixed, select: false },
     },
     { timestamps: true },
@@ -25,6 +29,7 @@ export const Course = model(
       name: String,
       code: String,
       credits: Number,
+      department: String,
       teacher: { type: Schema.Types.ObjectId, ref: "User" },
       students: [{ type: Schema.Types.ObjectId, ref: "User" }],
     },
@@ -85,7 +90,19 @@ export const Notice = model(
     {
       title: String,
       body: String,
+      course: { type: Schema.Types.ObjectId, ref: "Course" },
       createdBy: { type: Schema.Types.ObjectId, ref: "User" },
+    },
+    { timestamps: true },
+  ),
+);
+export const AuditLog = model(
+  "AuditLog",
+  new Schema(
+    {
+      actor: { type: Schema.Types.ObjectId, ref: "User" },
+      action: String,
+      target: String,
     },
     { timestamps: true },
   ),
