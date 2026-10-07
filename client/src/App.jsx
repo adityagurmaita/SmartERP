@@ -503,7 +503,7 @@ function WorkspaceApp() {
             </div>
           </div>
         </header>
-        <main className="content">
+        <main className={"content module-page module-" + tab.toLowerCase()}>
           <div className="demo-banner">
             {user.privateWorkspace
               ? "Private student workspace. Only your login can access these records. Academic activity and fees are demo records. Public demo admin review is unavailable. Uploaded files may reset; do not upload real documents."
@@ -773,6 +773,17 @@ function WorkspaceApp() {
                 )}
             </section>
           )}
+          {user.privateWorkspace &&
+            !["Dashboard", "Profile", "Attendance", "Results"].includes(
+              tab,
+            ) && (
+              <ModuleSpotlight
+                tab={tab}
+                assignments={assignments}
+                pending={pending}
+                notices={notices}
+              />
+            )}
           {tab === "Profile" && user.privateWorkspace && (
             <StudentProfile
               user={user}
@@ -1041,13 +1052,7 @@ function WorkspaceApp() {
           {tab === "Fees" && <Fees teacher={teacher} user={user} />}
           {tab === "Results" && (
             <>
-              {user.privateWorkspace && (
-                <Analytics
-                  attendance={attendance}
-                  results={results}
-                  section="grades"
-                />
-              )}
+              {user.privateWorkspace && <ResultsStudio results={results} />}
               <section className="panel">
                 <div className="panel-title">
                   <h2>{teacher ? "Published results" : "Academic progress"}</h2>
@@ -1107,6 +1112,9 @@ function WorkspaceApp() {
               </div>
               {notices.map((n) => (
                 <article className="notice-full" key={n._id}>
+                  <span className="notice-label">
+                    <Megaphone size={14} /> CAMPUS CIRCULAR
+                  </span>
                   <small>
                     {date(n.createdAt)} · {n.createdBy?.name}
                   </small>
@@ -2932,6 +2940,205 @@ function Fees({ teacher, user }) {
     </>
   );
 }
+function ModuleSpotlight({ tab, assignments, pending, notices }) {
+  const config = {
+    Assignments: [
+      ClipboardList,
+      "Your next move",
+      "Keep the work moving.",
+      "Briefs, deadlines and submissions in one place.",
+      `${pending.length} pending`,
+      `${assignments.length - pending.length} submitted`,
+    ],
+    Notices: [
+      Megaphone,
+      "Campus circulars",
+      "Stay in the loop.",
+      "Read the latest announcements from your campus workspace.",
+      `${notices.length} updates`,
+      "Campus bulletin",
+    ],
+    Applications: [
+      NotebookPen,
+      "Student services",
+      "Less paperwork. More clarity.",
+      "Start a document request and follow its status.",
+      "Documents",
+      "Status history",
+    ],
+    Hostel: [
+      CalendarDays,
+      "Hostel desk",
+      "Plan your time away.",
+      "Keep outpass requests and status history together.",
+      "Outpass requests",
+      "Status history",
+    ],
+    Grievances: [
+      MessageSquare,
+      "Student support",
+      "A place to be heard.",
+      "Record a concern and keep track of the response.",
+      "New concern",
+      "Status history",
+    ],
+    Timetable: [
+      CalendarDays,
+      "Your weekly rhythm",
+      "Make room for your day.",
+      "Your classes, rooms and times, laid out clearly.",
+      "Weekly view",
+      "Class schedule",
+    ],
+    Library: [
+      LibraryBig,
+      "Reading room",
+      "Your next good read.",
+      "Browse the catalog and manage your library loans.",
+      "Book catalog",
+      "Your loans",
+    ],
+    Exams: [
+      GraduationCap,
+      "Exam workspace",
+      "Prepare with a clear plan.",
+      "Check dates, rooms and exam requests in one place.",
+      "Exam schedule",
+      "Applications",
+    ],
+    Fees: [
+      Wallet,
+      "Fee workspace",
+      "Every record, clearly laid out.",
+      "Check balances, installments and demo receipts.",
+      "Fee records",
+      "Payment history",
+    ],
+    Resources: [
+      BookOpen,
+      "Study shelf",
+      "A little help for the next chapter.",
+      "Find example papers and syllabus materials by subject.",
+      "Practice papers",
+      "Syllabus",
+    ],
+    Clubs: [
+      GraduationCap,
+      "Beyond the classroom",
+      "Find your people.",
+      "Explore clubs and keep a record of your achievements.",
+      "Campus clubs",
+      "Achievements",
+    ],
+    Courses: [
+      BookOpen,
+      "Academic workspace",
+      "Get to know your subjects.",
+      "Your enrolled courses and classroom details.",
+      "Your courses",
+      "Subject details",
+    ],
+    Assistant: [
+      Sparkles,
+      "Your work, in focus",
+      "Start with what's next.",
+      "A rules-based planner for your recorded assignments.",
+      "Assignment planner",
+      "English + Hindi",
+    ],
+  }[tab];
+  if (!config) return null;
+  const [Icon, eyebrow, title, description, first, second] = config;
+  return (
+    <section className="module-spotlight">
+      <span className="module-spotlight-icon">
+        <Icon size={30} />
+      </span>
+      <span className="studio-eyebrow">{eyebrow}</span>
+      <h2>{title}</h2>
+      <p>{description}</p>
+      <div className="spotlight-tags">
+        <span>{first}</span>
+        <span>{second}</span>
+      </div>
+    </section>
+  );
+}
+function ResultsStudio({ results }) {
+  const credits = results.rows.reduce((sum, r) => sum + r.course.credits, 0);
+  const themes = ["ocean", "violet", "mint", "sunset"];
+  return (
+    <div className="results-studio">
+      <section className="results-hero">
+        <span className="studio-eyebrow">
+          <GraduationCap size={15} /> YOUR ACADEMIC PROGRESS
+        </span>
+        <h2>Grade profile</h2>
+        <div className="results-score-row">
+          <div>
+            <strong>
+              {results.cgpa?.toFixed(2) || "--"}
+              <small> / 10</small>
+            </strong>
+            <span>Credit-weighted CGPA</span>
+          </div>
+          <span className="results-medallion">
+            <GraduationCap size={43} />
+          </span>
+        </div>
+        <div className="results-summary">
+          <span>
+            <strong>{results.rows.length}</strong> graded subjects
+          </span>
+          <span>
+            <strong>{credits}</strong> graded credits
+          </span>
+        </div>
+        <p>Recorded grade points only. No invented semester history.</p>
+      </section>
+      <div className="attendance-section-label">
+        <h2>Subject performance</h2>
+        <span>Grade points / 10</span>
+      </div>
+      <div className="attendance-subject-grid">
+        {results.rows.map((r, i) => (
+          <section
+            className={
+              "attendance-subject result-subject " + themes[i % themes.length]
+            }
+            key={r._id}
+          >
+            <div className="subject-topline">
+              <span className="subject-code">
+                <BookOpen size={14} /> {r.course.code}
+              </span>
+              <span className="result-credit">{r.course.credits} credits</span>
+            </div>
+            <h3>{r.course.name}</h3>
+            <div className="subject-value-row">
+              <strong>
+                {r.gradePoint.toFixed(1)}
+                <small> / 10</small>
+              </strong>
+            </div>
+            <div
+              className="subject-progress"
+              role="img"
+              aria-label={`${r.course.code} grade point ${r.gradePoint.toFixed(1)} out of 10`}
+            >
+              <i style={{ width: `${r.gradePoint * 10}%` }} />
+            </div>
+            <div className="subject-progress-label">
+              <span>0</span>
+              <span>Grade point</span>
+              <span>10</span>
+            </div>
+          </section>
+        ))}
+      </div>
+    </div>
+  );
+}
 function AttendanceStudio({ attendance }) {
   const total = attendance.reduce((sum, a) => sum + a.total, 0);
   const attended = attendance.reduce((sum, a) => sum + a.attended, 0);
@@ -3589,7 +3796,12 @@ function RequestWorkspace({ kind, admin = false }) {
       {!admin && (
         <nav className="section-menu" aria-label={kind + " sections"}>
           {["New request", "Status history"].map((n) => (
-            <button className="small-btn" key={n} onClick={() => setSection(n)}>
+            <button
+              className={"small-btn " + (section === n ? "selected" : "")}
+              aria-pressed={section === n}
+              key={n}
+              onClick={() => setSection(n)}
+            >
               {n}
             </button>
           ))}
@@ -3831,7 +4043,12 @@ function CampusExtras({ type, user }) {
           ? ["Paper", "Syllabus"]
           : ["Clubs", "Achievements"]
         ).map((n) => (
-          <button className="small-btn" key={n} onClick={() => setFilter(n)}>
+          <button
+            className={"small-btn " + (filter === n ? "selected" : "")}
+            aria-pressed={filter === n}
+            key={n}
+            onClick={() => setFilter(n)}
+          >
             {n === "Paper" ? "Previous-year papers" : n}
           </button>
         ))}
