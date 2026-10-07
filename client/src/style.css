@@ -1920,3 +1920,6 @@ select,
     padding: 12px;
   }
 }
+.admin-workspace { color:var(--text); min-height:100vh; background:var(--bg); }
+.admin-workspace .topbar { color:var(--text); }
+.admin-workspace .small-btn { color:var(--text); }
