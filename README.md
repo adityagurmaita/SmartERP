@@ -129,3 +129,7 @@ In the public fictional demo, Fees > Pay demo fees lets the signed-in student re
 ### Fictional student services, batch 1
 
 Applications supports Certificate, Document copy, ID card and Degree requests. Hostel supports an IST departure/return range, purpose and fictional destination. Grievances supports subject/details. Students see only their own request histories. Demo admins use Requests to approve/reject document and leave requests, or review/resolve grievances, with a reviewer note. These actions never send a request to a college or issue an official document or outpass. Do not enter real personal data. All shared demo requests reset with the service.
+
+### Fictional campus expansion, batch 2
+
+Exam requests supports Back paper and Makeup exam applications with admin approval. Approved students can download a clearly marked fictional admit-card TXT, never valid for an exam and without invented eligibility/date/seat. Resources contains searchable example practice papers and syllabus TXT by course/session; these are authored demo samples, not real past university papers. Clubs supports join/leave; achievements are explicitly self-reported and unverified. No real college membership, exam application or document is created.

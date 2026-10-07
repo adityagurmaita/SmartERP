@@ -174,7 +174,7 @@ export const CampusRequest = model(
       student: { type: Schema.Types.ObjectId, ref: "User", required: true },
       kind: {
         type: String,
-        enum: ["Applications", "Hostel", "Grievances"],
+        enum: ["Applications", "Hostel", "Grievances", "Exam requests"],
         required: true,
       },
       category: String,
@@ -191,6 +191,46 @@ export const CampusRequest = model(
       reviewNote: String,
       reviewedAt: Date,
       reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    },
+    { timestamps: true },
+  ),
+);
+export const LearningResource = model(
+  "LearningResource",
+  new Schema(
+    {
+      kind: { type: String, enum: ["Paper", "Syllabus"] },
+      title: String,
+      course: { type: Schema.Types.ObjectId, ref: "Course" },
+      session: String,
+      semester: String,
+      content: String,
+    },
+    { timestamps: true },
+  ),
+);
+export const Club = model(
+  "Club",
+  new Schema({ name: String, description: String }, { timestamps: true }),
+);
+export const ClubMember = model(
+  "ClubMember",
+  new Schema(
+    {
+      student: { type: Schema.Types.ObjectId, ref: "User" },
+      club: { type: Schema.Types.ObjectId, ref: "Club" },
+    },
+    { timestamps: true },
+  ).index({ student: 1, club: 1 }, { unique: true }),
+);
+export const Achievement = model(
+  "Achievement",
+  new Schema(
+    {
+      student: { type: Schema.Types.ObjectId, ref: "User" },
+      title: String,
+      details: String,
+      achievedOn: Date,
     },
     { timestamps: true },
   ),

@@ -24,6 +24,10 @@ import {
   Book,
   Loan,
   CampusRequest,
+  LearningResource,
+  Club,
+  ClubMember,
+  Achievement,
 } from "./models.js";
 import { attendanceAdvice, cgpa } from "./math.js";
 export function createApp({
@@ -947,7 +951,12 @@ export function createApp({
       res.json(loan);
     }),
   );
-  const requestKinds = ["Applications", "Hostel", "Grievances"];
+  const requestKinds = [
+    "Applications",
+    "Hostel",
+    "Grievances",
+    "Exam requests",
+  ];
   app.get(
     "/api/requests",
     auth,
@@ -991,6 +1000,11 @@ export function createApp({
       )
         fail(400, "Choose a supported document type");
       if (
+        b.kind === "Exam requests" &&
+        !["Back paper", "Makeup exam"].includes(b.category)
+      )
+        fail(400, "Select a supported exam request");
+      if (
         b.kind === "Hostel" &&
         (!b.fromAt ||
           !b.toAt ||
@@ -1031,6 +1045,130 @@ export function createApp({
       Object.assign(r, b, { reviewedAt: new Date(), reviewedBy: req.user.id });
       await r.save();
       res.json(r);
+    }),
+  );
+  app.get(
+    "/api/requests/:id/admit-card",
+    auth,
+    wrap(async (req, res) => {
+      if (req.user.role !== "student") fail(403, "Student only");
+      const r = await CampusRequest.findOne({
+        _id: req.params.id,
+        student: req.user.id,
+        kind: "Exam requests",
+        status: "Approved",
+      }).populate("student", "name rollNumber");
+      if (!r) fail(404, "An approved exam request is required");
+      res
+        .type("text/plain")
+        .attachment("fictional-admit-card.txt")
+        .send(
+          [
+            "SMARTERP FICTIONAL ADMIT CARD",
+            "NOT VALID FOR ANY REAL EXAM. DEMO ONLY.",
+            "Student: " + r.student.name,
+            "Roll: " + r.student.rollNumber,
+            "Application: " + r.category,
+            "Subject: " + r.subject,
+            "Demo review: " + r.reviewNote,
+            "This demo approval does not assign a real exam date, hall or seat.",
+          ].join("\n"),
+        );
+    }),
+  );
+  app.get(
+    "/api/resources",
+    auth,
+    wrap(async (req, res) => {
+      const ids = await academicIds(req);
+      res.json(
+        await LearningResource.find({ course: { $in: ids } })
+          .populate("course", "name code")
+          .sort({ kind: 1, title: 1 }),
+      );
+    }),
+  );
+  app.get(
+    "/api/resources/:id/download",
+    auth,
+    wrap(async (req, res) => {
+      const r = await LearningResource.findOne({
+        _id: req.params.id,
+        course: { $in: await academicIds(req) },
+      }).populate("course", "name code");
+      if (!r) fail(404, "Resource not found");
+      res
+        .type("text/plain")
+        .attachment("demo-" + r.kind.toLowerCase() + ".txt")
+        .send(
+          [
+            "SMARTERP FICTIONAL " + r.kind.toUpperCase(),
+            "Not an official university document or an actual past exam paper.",
+            r.title,
+            r.course.name + " · " + r.session + " · " + r.semester,
+            r.content,
+          ].join("\n\n"),
+        );
+    }),
+  );
+  app.get(
+    "/api/clubs",
+    auth,
+    wrap(async (req, res) =>
+      res.json({
+        clubs: await Club.find(),
+        memberships: await ClubMember.find({ student: req.user.id }),
+        achievements: await Achievement.find({ student: req.user.id }).sort({
+          achievedOn: -1,
+        }),
+      }),
+    ),
+  );
+  app.post(
+    "/api/clubs/:id/join",
+    auth,
+    wrap(async (req, res) => {
+      if (req.user.role !== "student") fail(403, "Student only");
+      if (!(await Club.exists({ _id: req.params.id })))
+        fail(404, "Club not found");
+      res
+        .status(201)
+        .json(
+          await ClubMember.findOneAndUpdate(
+            { student: req.user.id, club: req.params.id },
+            { $setOnInsert: { student: req.user.id, club: req.params.id } },
+            { upsert: true, returnDocument: "after" },
+          ),
+        );
+    }),
+  );
+  app.delete(
+    "/api/clubs/:id/join",
+    auth,
+    wrap(async (req, res) => {
+      if (req.user.role !== "student") fail(403, "Student only");
+      await ClubMember.deleteOne({ student: req.user.id, club: req.params.id });
+      res.json({ left: true });
+    }),
+  );
+  app.post(
+    "/api/achievements",
+    auth,
+    wrap(async (req, res) => {
+      if (req.user.role !== "student") fail(403, "Student only");
+      const b = z
+        .object({
+          title: z.string().trim().min(3).max(100),
+          details: z.string().trim().min(5).max(1000),
+          achievedOn: z.string().datetime(),
+        })
+        .strict()
+        .parse(req.body);
+      if (new Date(b.achievedOn) > new Date())
+        fail(400, "Achievement cannot be in the future");
+      res
+        .status(201)
+        .json(await Achievement.create({ ...b, student: req.user.id }));
     }),
   );
   app.post(

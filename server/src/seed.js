@@ -13,6 +13,8 @@ import {
   Exam,
   Book,
   Loan,
+  LearningResource,
+  Club,
 } from "./models.js";
 export async function seed() {
   if (await User.exists({ email: "student@smarterp.demo" })) return;
@@ -159,6 +161,39 @@ export async function seed() {
     issuedAt: new Date(Date.now() - 12 * 864e5),
     dueAt: new Date(Date.now() + 2 * 864e5),
   });
+  await Club.insertMany([
+    {
+      name: "Demo Coding Club",
+      description: "Fictional peer coding sessions and project discussions.",
+    },
+    { name: "Demo Sports Club", description: "Fictional campus sports group." },
+    {
+      name: "Demo Arts Club",
+      description: "Fictional creative workshops and exhibitions.",
+    },
+  ]);
+  for (const c of await Course.find()) {
+    await LearningResource.create({
+      kind: "Paper",
+      course: c._id,
+      title: c.name + " - demo previous-year practice",
+      session: "2025-26",
+      semester: "Semester 5",
+      content:
+        "FICTIONAL PRACTICE QUESTIONS, not a retrieved past university paper.\n1. Explain one core concept from " +
+        c.name +
+        ".\n2. Give a worked example and discuss its limits.\n3. Compare two approaches used in this subject.",
+    });
+    await LearningResource.create({
+      kind: "Syllabus",
+      course: c._id,
+      title: c.name + " - demo syllabus",
+      session: "2026-27",
+      semester: "Semester 5",
+      content:
+        "Fictional outline for demonstration.\nUnit 1: Foundations.\nUnit 2: Core techniques.\nUnit 3: Practical examples.\nUnit 4: Project and revision.\nThis is not an official curriculum.",
+    });
+  }
   await Fee.create({
     student: student.id,
     title: "Tuition fee",

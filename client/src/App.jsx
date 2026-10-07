@@ -42,6 +42,8 @@ const navigation = [
   ["Applications", ClipboardList],
   ["Hostel", CalendarDays],
   ["Grievances", MessageSquare],
+  ["Resources", BookOpen],
+  ["Clubs", GraduationCap],
 ];
 async function api(url, options = {}) {
   const response = await fetch("/api" + url, {
@@ -143,6 +145,8 @@ export default function App() {
           "Applications",
           "Hostel",
           "Grievances",
+          "Resources",
+          "Clubs",
           "Requests",
         ].includes(t)
           ? t
@@ -349,7 +353,16 @@ export default function App() {
           {navigation
             .filter(
               ([n]) =>
-                !teacher || !["Attendance", "Assistant", "Fees"].includes(n),
+                !teacher ||
+                ![
+                  "Attendance",
+                  "Assistant",
+                  "Fees",
+                  "Applications",
+                  "Hostel",
+                  "Grievances",
+                  "Clubs",
+                ].includes(n),
             )
             .map(([name, Icon]) => (
               <button
@@ -484,7 +497,16 @@ export default function App() {
             {navigation
               .filter(
                 ([n]) =>
-                  !teacher || !["Attendance", "Assistant", "Fees"].includes(n),
+                  !teacher ||
+                  ![
+                    "Attendance",
+                    "Assistant",
+                    "Fees",
+                    "Applications",
+                    "Hostel",
+                    "Grievances",
+                    "Clubs",
+                  ].includes(n),
               )
               .map(([name, Icon]) => (
                 <button
@@ -788,6 +810,12 @@ export default function App() {
           )}
           {["Applications", "Hostel", "Grievances"].includes(tab) && (
             <RequestWorkspace key={tab} kind={tab} />
+          )}
+          {["Resources", "Clubs"].includes(tab) && (
+            <CampusExtras key={tab} type={tab} user={user} />
+          )}
+          {tab === "Exams" && !teacher && (
+            <RequestWorkspace kind="Exam requests" />
           )}
           {tab === "Fees" && <Fees teacher={teacher} user={user} />}
           {tab === "Results" && (
@@ -2703,7 +2731,9 @@ function RequestWorkspace({ kind, admin = false }) {
               ? "Documents and applications"
               : kind === "Hostel"
                 ? "Hostel outpass"
-                : "Grievance desk"}
+                : kind === "Exam requests"
+                  ? "Exam applications and admit cards"
+                  : "Grievance desk"}
         </h2>
       </div>
       <p className="demo-warning">
@@ -2729,7 +2759,13 @@ function RequestWorkspace({ kind, admin = false }) {
         <label>
           Request type
           <select value={filter} onChange={(e) => setFilter(e.target.value)}>
-            {["All", "Applications", "Hostel", "Grievances"].map((n) => (
+            {[
+              "All",
+              "Applications",
+              "Hostel",
+              "Grievances",
+              "Exam requests",
+            ].map((n) => (
               <option key={n}>{n}</option>
             ))}
           </select>
@@ -2746,6 +2782,15 @@ function RequestWorkspace({ kind, admin = false }) {
                     <option key={n}>{n}</option>
                   ),
                 )}
+              </select>
+            </label>
+          )}
+          {kind === "Exam requests" && (
+            <label>
+              Exam request type
+              <select name="category">
+                <option>Back paper</option>
+                <option>Makeup exam</option>
               </select>
             </label>
           )}
@@ -2833,6 +2878,17 @@ function RequestWorkspace({ kind, admin = false }) {
                     <strong>Demo reviewer note:</strong> {r.reviewNote}
                   </p>
                 )}
+                {!admin &&
+                  r.kind === "Exam requests" &&
+                  r.status === "Approved" && (
+                    <a
+                      className="small-btn"
+                      href={"/api/requests/" + r._id + "/admit-card"}
+                      download
+                    >
+                      Download fictional admit card
+                    </a>
+                  )}
                 {admin && (
                   <button className="small-btn" onClick={() => setReview(r)}>
                     Review demo request
@@ -2877,6 +2933,170 @@ function RequestWorkspace({ kind, admin = false }) {
             </button>
           </form>
         </Modal>
+      )}
+    </section>
+  );
+}
+
+function CampusExtras({ type, user }) {
+  const [data, setData] = useState(null),
+    [filter, setFilter] = useState(type === "Resources" ? "Paper" : "Clubs"),
+    [search, setSearch] = useState(""),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false);
+  const load = () =>
+    api(type === "Resources" ? "/resources" : "/clubs").then(setData);
+  useEffect(() => {
+    load().catch((e) => setError(e.message));
+  }, []);
+  async function act(fn) {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function achievement(e) {
+    e.preventDefault();
+    const f = e.currentTarget,
+      b = Object.fromEntries(new FormData(f));
+    b.achievedOn = new Date(b.achievedOn + "T00:00:00+05:30").toISOString();
+    await act(async () => {
+      await api("/achievements", { method: "POST", body: JSON.stringify(b) });
+      f.reset();
+    });
+  }
+  return (
+    <section className="panel request-workspace">
+      <div className="panel-title">
+        <h2>
+          {type === "Resources"
+            ? "Papers and syllabus"
+            : "Clubs and achievements"}
+        </h2>
+      </div>
+      <p className="demo-warning">
+        Fictional demo content only. Papers are example practice materials, not
+        actual university papers. Memberships and achievements have no
+        real-college effect.
+      </p>
+      {error && <p role="alert">{error}</p>}
+      <nav className="section-menu">
+        {(type === "Resources"
+          ? ["Paper", "Syllabus"]
+          : ["Clubs", "Achievements"]
+        ).map((n) => (
+          <button className="small-btn" key={n} onClick={() => setFilter(n)}>
+            {n === "Paper" ? "Previous-year papers" : n}
+          </button>
+        ))}
+      </nav>
+      {!data ? (
+        <p>Loading...</p>
+      ) : type === "Resources" ? (
+        <>
+          <label>
+            Search resources
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Subject or session"
+            />
+          </label>
+          {data
+            .filter(
+              (r) =>
+                r.kind === filter &&
+                (r.title + " " + r.session)
+                  .toLowerCase()
+                  .includes(search.toLowerCase()),
+            )
+            .map((r) => (
+              <article className="request-card" key={r._id}>
+                <Badge>{r.kind}</Badge>
+                <h3>{r.title}</h3>
+                <p>
+                  {r.course.code} · {r.session} · {r.semester}
+                </p>
+                <p>Fictional example, not an official paper or syllabus.</p>
+                <a
+                  className="small-btn"
+                  href={"/api/resources/" + r._id + "/download"}
+                  download
+                >
+                  Download demo TXT
+                </a>
+              </article>
+            ))}
+        </>
+      ) : filter === "Clubs" ? (
+        <div>
+          {data.clubs.map((c) => {
+            const joined = data.memberships.some((m) => m.club === c._id);
+            return (
+              <article className="request-card" key={c._id}>
+                <h3>{c.name}</h3>
+                <p>{c.description}</p>
+                <Badge>{joined ? "Joined (demo)" : "Open"}</Badge>
+                {user.role === "student" && (
+                  <button
+                    className="small-btn"
+                    disabled={busy}
+                    onClick={() =>
+                      act(() =>
+                        api("/clubs/" + c._id + "/join", {
+                          method: joined ? "DELETE" : "POST",
+                        }),
+                      )
+                    }
+                  >
+                    {joined ? "Leave demo club" : "Join demo club"}
+                  </button>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      ) : (
+        <>
+          <h3>Self-reported demo achievements</h3>
+          <p>These are unverified, not official certificates.</p>
+          {data.achievements.map((a) => (
+            <article className="request-card" key={a._id}>
+              <h3>{a.title}</h3>
+              <p>{date(a.achievedOn)} · Self-reported</p>
+              <p>{a.details}</p>
+            </article>
+          ))}
+          {!data.achievements.length && <Empty>No achievements yet.</Empty>}
+          <form className="request-form" onSubmit={achievement}>
+            <label>
+              Achievement title
+              <input name="title" required minLength={3} maxLength={100} />
+            </label>
+            <label>
+              Achievement details
+              <textarea
+                name="details"
+                required
+                minLength={5}
+                maxLength={1000}
+              />
+            </label>
+            <label>
+              Achievement date
+              <input type="date" name="achievedOn" required />
+            </label>
+            <button className="primary" disabled={busy}>
+              Add demo achievement
+            </button>
+          </form>
+        </>
       )}
     </section>
   );

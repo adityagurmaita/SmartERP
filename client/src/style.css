@@ -2435,3 +2435,19 @@ select,
 .request-workspace select {
   max-width: 100%;
 }
+.sidebar {
+  overflow-y: auto;
+}
+.sidebar nav {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+.sidebar .logout {
+  flex-shrink: 0;
+}
+.admin-workspace .topbar {
+  height: auto;
+  min-height: 72px;
+  flex-wrap: wrap;
+}
