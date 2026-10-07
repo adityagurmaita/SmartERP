@@ -167,3 +167,31 @@ export const Loan = model(
     { timestamps: true },
   ),
 );
+export const CampusRequest = model(
+  "CampusRequest",
+  new Schema(
+    {
+      student: { type: Schema.Types.ObjectId, ref: "User", required: true },
+      kind: {
+        type: String,
+        enum: ["Applications", "Hostel", "Grievances"],
+        required: true,
+      },
+      category: String,
+      subject: String,
+      details: String,
+      fromAt: Date,
+      toAt: Date,
+      destination: String,
+      status: {
+        type: String,
+        enum: ["Pending", "Approved", "Rejected", "In review", "Resolved"],
+        default: "Pending",
+      },
+      reviewNote: String,
+      reviewedAt: Date,
+      reviewedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    },
+    { timestamps: true },
+  ),
+);

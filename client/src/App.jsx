@@ -39,6 +39,9 @@ const navigation = [
   ["Timetable", CalendarDays],
   ["Library", LibraryBig],
   ["Exams", NotebookPen],
+  ["Applications", ClipboardList],
+  ["Hostel", CalendarDays],
+  ["Grievances", MessageSquare],
 ];
 async function api(url, options = {}) {
   const response = await fetch("/api" + url, {
@@ -137,6 +140,10 @@ export default function App() {
           "Timetable",
           "Library",
           "Exams",
+          "Applications",
+          "Hostel",
+          "Grievances",
+          "Requests",
         ].includes(t)
           ? t
           : "Dashboard",
@@ -213,9 +220,27 @@ export default function App() {
             Fictional-data demo. Do not enter real student information. Demo
             changes may be reset.
           </div>
-          <h1>Fees</h1>
-          <p className="muted">{user.name} · Accounts office workspace</p>
-          <Fees teacher={true} />
+          <nav className="section-menu" aria-label="Admin sections">
+            {["Fees", "Requests"].map((n) => (
+              <button
+                className="small-btn"
+                key={n}
+                onClick={() => {
+                  history.pushState({}, "", "/" + n);
+                  setTab(n);
+                }}
+              >
+                {n}
+              </button>
+            ))}
+          </nav>
+          <h1>{tab === "Requests" ? "Request review" : "Fees"}</h1>
+          <p className="muted">{user.name} · Demo admin workspace</p>
+          {tab === "Requests" ? (
+            <RequestWorkspace admin={true} />
+          ) : (
+            <Fees teacher={true} />
+          )}
         </main>
       </div>
     );
@@ -760,6 +785,9 @@ export default function App() {
           )}
           {["Timetable", "Library", "Exams"].includes(tab) && (
             <CampusModule key={tab} type={tab} user={user} courses={courses} />
+          )}
+          {["Applications", "Hostel", "Grievances"].includes(tab) && (
+            <RequestWorkspace key={tab} kind={tab} />
           )}
           {tab === "Fees" && <Fees teacher={teacher} user={user} />}
           {tab === "Results" && (
@@ -2613,6 +2641,239 @@ function CampusModule({ type, user, courses }) {
             {error && <p role="alert">{error}</p>}
             <button className="primary" disabled={busy}>
               Save fictional schedule
+            </button>
+          </form>
+        </Modal>
+      )}
+    </section>
+  );
+}
+
+function RequestWorkspace({ kind, admin = false }) {
+  const [rows, setRows] = useState(null),
+    [error, setError] = useState(""),
+    [busy, setBusy] = useState(false),
+    [section, setSection] = useState("Status history"),
+    [filter, setFilter] = useState("All"),
+    [review, setReview] = useState(null);
+  const load = () =>
+    api("/requests" + (admin ? "" : "?kind=" + encodeURIComponent(kind))).then(
+      setRows,
+    );
+  useEffect(() => {
+    load().catch((e) => setError(e.message));
+  }, []);
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    const form = e.currentTarget,
+      f = Object.fromEntries(new FormData(form));
+    try {
+      if (admin) {
+        await api("/requests/" + review._id, {
+          method: "PATCH",
+          body: JSON.stringify(f),
+        });
+        setReview(null);
+      } else {
+        f.kind = kind;
+        if (kind === "Hostel") {
+          f.fromAt = new Date(f.fromAt + "+05:30").toISOString();
+          f.toAt = new Date(f.toAt + "+05:30").toISOString();
+        }
+        await api("/requests", { method: "POST", body: JSON.stringify(f) });
+        form.reset();
+        setSection("Status history");
+      }
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  return (
+    <section className="panel request-workspace">
+      <div className="panel-title">
+        <h2>
+          {admin
+            ? "Student request inbox"
+            : kind === "Applications"
+              ? "Documents and applications"
+              : kind === "Hostel"
+                ? "Hostel outpass"
+                : "Grievance desk"}
+        </h2>
+      </div>
+      <p className="demo-warning">
+        Fictional demo only. No request is sent to a real college. Do not enter
+        real personal details. Approval is not official permission or a real
+        document.
+      </p>
+      {error && (
+        <p role="alert" className="fee-error">
+          {error}
+        </p>
+      )}
+      {!admin && (
+        <nav className="section-menu" aria-label={kind + " sections"}>
+          {["New request", "Status history"].map((n) => (
+            <button className="small-btn" key={n} onClick={() => setSection(n)}>
+              {n}
+            </button>
+          ))}
+        </nav>
+      )}
+      {admin && (
+        <label>
+          Request type
+          <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+            {["All", "Applications", "Hostel", "Grievances"].map((n) => (
+              <option key={n}>{n}</option>
+            ))}
+          </select>
+        </label>
+      )}
+      {!admin && section === "New request" ? (
+        <form className="request-form" onSubmit={submit}>
+          {kind === "Applications" && (
+            <label>
+              Document type
+              <select name="category">
+                {["Certificate", "Document copy", "ID card", "Degree"].map(
+                  (n) => (
+                    <option key={n}>{n}</option>
+                  ),
+                )}
+              </select>
+            </label>
+          )}
+          <label>
+            {kind === "Grievances" ? "Complaint subject" : "Request subject"}
+            <input
+              required
+              name="subject"
+              minLength={3}
+              maxLength={100}
+              placeholder="Fictional demo request"
+            />
+          </label>
+          <label>
+            {kind === "Hostel" ? "Reason for leave" : "Details"}
+            <textarea required name="details" minLength={5} maxLength={2000} />
+          </label>
+          {kind === "Hostel" && (
+            <>
+              <label>
+                Departure (IST)
+                <input required type="datetime-local" name="fromAt" />
+              </label>
+              <label>
+                Return (IST)
+                <input required type="datetime-local" name="toAt" />
+              </label>
+              <label>
+                Demo destination
+                <input
+                  required
+                  name="destination"
+                  maxLength={150}
+                  placeholder="Fictional destination"
+                />
+              </label>
+            </>
+          )}
+          <button className="primary" disabled={busy}>
+            {busy ? "Saving..." : "Submit demo request"}
+          </button>
+        </form>
+      ) : !rows ? (
+        <p>Loading requests...</p>
+      ) : (
+        <div>
+          {rows
+            .filter((r) => filter === "All" || r.kind === filter)
+            .map((r) => (
+              <article className="request-card" key={r._id}>
+                <Badge
+                  tone={
+                    r.status === "Approved" || r.status === "Resolved"
+                      ? "green"
+                      : "amber"
+                  }
+                >
+                  {r.status}
+                </Badge>
+                <h3>{r.subject}</h3>
+                <p>
+                  {r.kind}
+                  {r.category ? " · " + r.category : ""} · {date(r.createdAt)}
+                </p>
+                {admin && (
+                  <strong>
+                    {r.student.name} · {r.student.rollNumber}
+                  </strong>
+                )}
+                <p className="request-details">{r.details}</p>
+                {r.fromAt && (
+                  <p>
+                    {new Date(r.fromAt).toLocaleString("en-IN", {
+                      timeZone: "Asia/Kolkata",
+                    })}{" "}
+                    to{" "}
+                    {new Date(r.toAt).toLocaleString("en-IN", {
+                      timeZone: "Asia/Kolkata",
+                    })}{" "}
+                    IST · {r.destination}
+                  </p>
+                )}
+                {r.reviewNote && (
+                  <p>
+                    <strong>Demo reviewer note:</strong> {r.reviewNote}
+                  </p>
+                )}
+                {admin && (
+                  <button className="small-btn" onClick={() => setReview(r)}>
+                    Review demo request
+                  </button>
+                )}
+              </article>
+            ))}
+          {!rows.some((r) => filter === "All" || r.kind === filter) && (
+            <Empty>No requests yet.</Empty>
+          )}
+        </div>
+      )}
+      {review && (
+        <Modal
+          title="Review demo request"
+          onClose={() => !busy && setReview(null)}
+        >
+          <form className="request-form" onSubmit={submit}>
+            <h3>{review.subject}</h3>
+            <label>
+              Review status
+              <select name="status">
+                {(review.kind === "Grievances"
+                  ? ["In review", "Resolved", "Rejected"]
+                  : ["Approved", "Rejected"]
+                ).map((n) => (
+                  <option key={n}>{n}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Reviewer note
+              <textarea
+                required
+                name="reviewNote"
+                minLength={3}
+                maxLength={1000}
+              />
+            </label>
+            <button className="primary" disabled={busy}>
+              Save demo review
             </button>
           </form>
         </Modal>

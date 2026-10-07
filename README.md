@@ -125,3 +125,7 @@ Library issue/return endpoints are admin-only; the accounts-admin UI remains fee
 ### Student simulated checkout
 
 In the public fictional demo, Fees > Pay demo fees lets the signed-in student review and settle the full outstanding balance of one of their own demo fee records. Confirmation creates a marked fictional receipt and transaction entry. No card/bank fields, real gateway or real money are involved. A stale balance or repeated checkout is rejected atomically. This endpoint is disabled outside public demo mode. Accounts-admin edit and recording permissions remain separate.
+
+### Fictional student services, batch 1
+
+Applications supports Certificate, Document copy, ID card and Degree requests. Hostel supports an IST departure/return range, purpose and fictional destination. Grievances supports subject/details. Students see only their own request histories. Demo admins use Requests to approve/reject document and leave requests, or review/resolve grievances, with a reviewer note. These actions never send a request to a college or issue an official document or outpass. Do not enter real personal data. All shared demo requests reset with the service.

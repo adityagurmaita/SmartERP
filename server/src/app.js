@@ -23,6 +23,7 @@ import {
   Exam,
   Book,
   Loan,
+  CampusRequest,
 } from "./models.js";
 import { attendanceAdvice, cgpa } from "./math.js";
 export function createApp({
@@ -944,6 +945,92 @@ export function createApp({
       );
       if (!loan) fail(400, "Active loan not found");
       res.json(loan);
+    }),
+  );
+  const requestKinds = ["Applications", "Hostel", "Grievances"];
+  app.get(
+    "/api/requests",
+    auth,
+    wrap(async (req, res) => {
+      if (!["student", "admin"].includes(req.user.role))
+        fail(403, "Student or admin access only");
+      const kind = z.enum(requestKinds).optional().parse(req.query.kind);
+      res.json(
+        await CampusRequest.find({
+          ...(req.user.role === "student" ? { student: req.user.id } : {}),
+          ...(kind ? { kind } : {}),
+        })
+          .populate("student", "name rollNumber")
+          .sort({ createdAt: -1 })
+          .limit(100),
+      );
+    }),
+  );
+  app.post(
+    "/api/requests",
+    auth,
+    wrap(async (req, res) => {
+      if (req.user.role !== "student") fail(403, "Student applications only");
+      const b = z
+        .object({
+          kind: z.enum(requestKinds),
+          category: z.string().trim().max(80).optional(),
+          subject: z.string().trim().min(3).max(100),
+          details: z.string().trim().min(5).max(2000),
+          fromAt: z.string().datetime().optional(),
+          toAt: z.string().datetime().optional(),
+          destination: z.string().trim().max(150).optional(),
+        })
+        .strict()
+        .parse(req.body);
+      if (
+        b.kind === "Applications" &&
+        !["Certificate", "Document copy", "ID card", "Degree"].includes(
+          b.category,
+        )
+      )
+        fail(400, "Choose a supported document type");
+      if (
+        b.kind === "Hostel" &&
+        (!b.fromAt ||
+          !b.toAt ||
+          !b.destination ||
+          new Date(b.toAt) <= new Date(b.fromAt))
+      )
+        fail(400, "Provide destination and a return time after departure");
+      res
+        .status(201)
+        .json(await CampusRequest.create({ ...b, student: req.user.id }));
+    }),
+  );
+  app.patch(
+    "/api/requests/:id",
+    auth,
+    admin,
+    wrap(async (req, res) => {
+      if (!/^[a-f\d]{24}$/i.test(req.params.id)) fail(404, "Request not found");
+      const r = await CampusRequest.findById(req.params.id);
+      if (!r) fail(404, "Request not found");
+      const b = z
+        .object({
+          status: z.enum(["Approved", "Rejected", "In review", "Resolved"]),
+          reviewNote: z.string().trim().min(3).max(1000),
+        })
+        .strict()
+        .parse(req.body);
+      if (
+        r.kind !== "Grievances" &&
+        !["Approved", "Rejected"].includes(b.status)
+      )
+        fail(400, "Document and leave requests require Approved or Rejected");
+      if (
+        r.kind === "Grievances" &&
+        !["In review", "Resolved", "Rejected"].includes(b.status)
+      )
+        fail(400, "Choose a complaint review status");
+      Object.assign(r, b, { reviewedAt: new Date(), reviewedBy: req.user.id });
+      await r.save();
+      res.json(r);
     }),
   );
   app.post(

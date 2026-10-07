@@ -2406,3 +2406,32 @@ select,
     flex-direction: column;
   }
 }
+.request-workspace {
+  padding: 20px;
+}
+.request-form {
+  display: grid;
+  gap: 16px;
+  padding: 20px;
+  max-width: 620px;
+}
+.request-form label {
+  display: grid;
+  gap: 8px;
+}
+.request-card {
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  margin: 16px 0;
+}
+.request-card h3 {
+  margin: 12px 0;
+}
+.request-details {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.request-workspace select {
+  max-width: 100%;
+}
