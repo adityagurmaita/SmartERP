@@ -14,10 +14,12 @@ test("fee scope, balances, recording, overpayment and marked receipts", async ()
     await seed();
     const app = createApp({ jwtSecret: "a".repeat(48) });
     const student = request.agent(app),
-      teacher = request.agent(app);
+      teacher = request.agent(app),
+      admin = request.agent(app);
     for (const [a, role] of [
       [student, "student"],
       [teacher, "teacher"],
+      [admin, "admin"],
     ])
       await a
         .post("/api/auth/login")
@@ -34,13 +36,22 @@ test("fee scope, balances, recording, overpayment and marked receipts", async ()
         reference: "demo",
       })
       .expect(403);
+    await teacher.get("/api/fees").expect(403);
+    await teacher
+      .post("/api/fees/" + fee._id + "/payments")
+      .send({
+        amountPaise: 100,
+        paidAt: new Date().toISOString(),
+        reference: "not allowed",
+      })
+      .expect(403);
     const body = {
       amountPaise: 100000,
       paidAt: new Date().toISOString(),
       reference: "Test demo entry",
     };
     const result = (
-      await teacher
+      await admin
         .post("/api/fees/" + fee._id + "/payments")
         .send(body)
         .expect(201)
@@ -51,11 +62,11 @@ test("fee scope, balances, recording, overpayment and marked receipts", async ()
       .expect(200);
     assert.match(receipt.text, /NOT AN OFFICIAL UNIVERSITY RECEIPT/);
     assert.match(receipt.text, /INR 1000.00/);
-    await teacher
+    await admin
       .post("/api/fees/" + fee._id + "/payments")
       .send({ ...body, amountPaise: 200000 })
       .expect(400);
-    await teacher
+    await admin
       .patch("/api/fees/" + fee._id)
       .send({
         title: fee.title,
@@ -80,7 +91,7 @@ test("fee scope, balances, recording, overpayment and marked receipts", async ()
     await student
       .get("/api/fees/" + hidden.id + "/receipts/000000000000000000000000")
       .expect(403);
-    await teacher
+    await admin
       .patch("/api/fees/" + hidden.id)
       .send({
         title: "Hidden",
@@ -88,12 +99,12 @@ test("fee scope, balances, recording, overpayment and marked receipts", async ()
         amountPaise: 20000,
         dueAt: new Date().toISOString(),
       })
-      .expect(403);
+      .expect(200);
     const concurrent = await Promise.all([
-      teacher
+      admin
         .post("/api/fees/" + fee._id + "/payments")
         .send({ ...body, amountPaise: 100000 }),
-      teacher
+      admin
         .post("/api/fees/" + fee._id + "/payments")
         .send({ ...body, amountPaise: 100000 }),
     ]);

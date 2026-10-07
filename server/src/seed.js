@@ -26,6 +26,12 @@ export async function seed() {
     role: "teacher",
     passwordHash,
   });
+  const admin = await User.create({
+    name: "Demo Accounts Office",
+    email: "admin@smarterp.demo",
+    role: "admin",
+    passwordHash,
+  });
   const specs = [
     ["Data Structures", "CS201", 4, 32, 40, 8.5],
     ["Database Systems", "CS202", 4, 27, 40, 9],
@@ -98,14 +104,14 @@ export async function seed() {
     semester: "Semester 5",
     amountPaise: 6500000,
     dueAt: new Date(Date.now() + 7 * 864e5),
-    createdBy: teacher.id,
+    createdBy: admin.id,
     payments: [
       {
         amountPaise: 4000000,
         paidAt: new Date(Date.now() - 10 * 864e5),
         reference: "Fictional demo bank entry",
         receiptNumber: "DEMO-TUITION-001",
-        recordedBy: teacher.id,
+        recordedBy: admin.id,
       },
     ],
   });
@@ -115,7 +121,7 @@ export async function seed() {
     semester: "Semester 5",
     amountPaise: 250000,
     dueAt: new Date(Date.now() - 2 * 864e5),
-    createdBy: teacher.id,
+    createdBy: admin.id,
     payments: [],
   });
   await Fee.create({
@@ -124,14 +130,14 @@ export async function seed() {
     semester: "Semester 5",
     amountPaise: 100000,
     dueAt: new Date(Date.now() - 15 * 864e5),
-    createdBy: teacher.id,
+    createdBy: admin.id,
     payments: [
       {
         amountPaise: 100000,
         paidAt: new Date(Date.now() - 16 * 864e5),
         reference: "Fictional demo entry",
         receiptNumber: "DEMO-LIBRARY-001",
-        recordedBy: teacher.id,
+        recordedBy: admin.id,
       },
     ],
   });

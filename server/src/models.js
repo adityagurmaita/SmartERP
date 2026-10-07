@@ -7,7 +7,11 @@ export const User = model(
       name: { type: String, required: true },
       email: { type: String, unique: true, required: true },
       passwordHash: { type: String, required: true, select: false },
-      role: { type: String, enum: ["student", "teacher"], required: true },
+      role: {
+        type: String,
+        enum: ["student", "teacher", "admin"],
+        required: true,
+      },
       rollNumber: String,
     },
     { timestamps: true },

@@ -114,6 +114,7 @@ export default function App() {
       .finally(() => setLoading(false));
   }, []);
   async function refresh() {
+    if (user?.role === "admin") return;
     const [c, a, t, r, n] = await Promise.all([
       api("/courses"),
       api("/assignments"),
@@ -154,6 +155,37 @@ export default function App() {
       </div>
     );
   if (!user) return <Auth onLogin={setUser} dark={dark} setDark={setDark} />;
+  if (user.role === "admin")
+    return (
+      <div className="admin-workspace">
+        <header className="topbar">
+          <strong>SmartERP · Accounts admin</strong>
+          <div>
+            <button className="small-btn" onClick={() => setDark(!dark)}>
+              Toggle dark mode
+            </button>
+            <button
+              className="small-btn"
+              onClick={async () => {
+                await api("/auth/logout", { method: "POST" });
+                setUser(null);
+              }}
+            >
+              Sign out
+            </button>
+          </div>
+        </header>
+        <main className="admin-fees">
+          <div className="demo-warning">
+            Fictional-data demo. Do not enter real student information. Demo
+            changes may be reset.
+          </div>
+          <h1>Fees</h1>
+          <p className="muted">{user.name} · Accounts office workspace</p>
+          <Fees teacher={true} />
+        </main>
+      </div>
+    );
   const teacher = user.role === "teacher",
     pending = assignments.filter((a) => !a.submission),
     total = attendance.reduce((s, a) => s + a.total, 0),
@@ -257,7 +289,8 @@ export default function App() {
         <nav>
           {navigation
             .filter(
-              ([n]) => !teacher || !["Attendance", "Assistant"].includes(n),
+              ([n]) =>
+                !teacher || !["Attendance", "Assistant", "Fees"].includes(n),
             )
             .map(([name, Icon]) => (
               <button
@@ -391,7 +424,8 @@ export default function App() {
           <div className="erp-modules">
             {navigation
               .filter(
-                ([n]) => !teacher || !["Attendance", "Assistant"].includes(n),
+                ([n]) =>
+                  !teacher || !["Attendance", "Assistant", "Fees"].includes(n),
               )
               .map(([name, Icon]) => (
                 <button
@@ -1313,7 +1347,7 @@ function Auth({ onLogin, dark, setDark }) {
           <p className="muted">
             {register
               ? "Create your student or faculty account."
-              : "Demo: student@smarterp.demo or teacher@smarterp.demo. Password: SmartERPdemo123!"}
+              : "Demo: student@smarterp.demo, teacher@smarterp.demo or admin@smarterp.demo. Password: SmartERPdemo123!"}
           </p>
           <form
             onSubmit={async (e) => {
@@ -1708,7 +1742,7 @@ function Fees({ teacher }) {
                   <label>
                     Student
                     <select name="student" required>
-                      <option value="">Choose enrolled student</option>
+                      <option value="">Choose student</option>
                       {data.students.map((st) => (
                         <option key={st._id} value={st._id}>
                           {st.name} · {st.rollNumber}

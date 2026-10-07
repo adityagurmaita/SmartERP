@@ -551,10 +551,30 @@ export function createApp({
         .json(await Notice.create({ ...b, createdBy: req.user.id }));
     }),
   );
+  const admin = (req, res, next) => {
+    if (req.user.role !== "admin")
+      return res
+        .status(403)
+        .json({ message: "Accounts admin access required" });
+    next();
+  };
+  const feeReader = (req, res, next) => {
+    if (!["student", "admin"].includes(req.user.role))
+      return res
+        .status(403)
+        .json({
+          message:
+            "Fee records are restricted to the student and accounts admin",
+        });
+    next();
+  };
   const feeScope = async (req) => {
     if (req.user.role === "student") return [req.user.id];
-    const courses = await Course.find({ teacher: req.user.id });
-    return [...new Set(courses.flatMap((c) => c.students.map(String)))];
+    if (req.user.role === "admin")
+      return (await User.find({ role: "student" }).select("_id")).map(
+        (u) => u.id,
+      );
+    return [];
   };
   const feeAccess = async (req, id) => {
     if (!/^[a-f\d]{24}$/i.test(id || "")) fail(404, "Fee record not found");
@@ -576,6 +596,7 @@ export function createApp({
   app.get(
     "/api/fees",
     auth,
+    feeReader,
     wrap(async (req, res) => {
       const ids = await feeScope(req);
       res.json({
@@ -583,7 +604,7 @@ export function createApp({
           .populate("student", "name rollNumber email")
           .sort({ dueAt: 1 }),
         students:
-          req.user.role === "teacher"
+          req.user.role === "admin"
             ? await User.find({ _id: { $in: ids } }).select(
                 "name rollNumber email",
               )
@@ -594,13 +615,14 @@ export function createApp({
   app.post(
     "/api/fees",
     auth,
-    teacher,
+    feeReader,
+    admin,
     wrap(async (req, res) => {
       const body = feeBody
         .extend({ student: z.string().regex(/^[a-f\d]{24}$/i) })
         .parse(req.body);
       if (!(await feeScope(req)).includes(body.student))
-        fail(403, "Student is not enrolled in your courses");
+        fail(403, "Student not found");
       res
         .status(201)
         .json(await Fee.create({ ...body, createdBy: req.user.id }));
@@ -609,7 +631,7 @@ export function createApp({
   app.patch(
     "/api/fees/:id",
     auth,
-    teacher,
+    admin,
     wrap(async (req, res) => {
       const fee = await feeAccess(req, req.params.id);
       const body = feeBody.parse(req.body);
@@ -624,7 +646,7 @@ export function createApp({
   app.post(
     "/api/fees/:id/payments",
     auth,
-    teacher,
+    admin,
     wrap(async (req, res) => {
       const fee = await feeAccess(req, req.params.id);
       const body = z
@@ -663,6 +685,7 @@ export function createApp({
   app.get(
     "/api/fees/:id/receipts/:payment",
     auth,
+    feeReader,
     wrap(async (req, res) => {
       const fee = await feeAccess(req, req.params.id);
       const payment = fee.payments.id(req.params.payment);
