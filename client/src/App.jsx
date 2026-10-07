@@ -1132,9 +1132,10 @@ function WorkspaceApp() {
               </div>
               <h2>Your campus copilot</h2>
               <p className="muted">
-                Ask about your name, roll number, attendance, CGPA, fees or
-                assignments in English or Hindi. Answers use your workspace
-                records, not an external AI model.
+                Personal record questions are answered locally. General
+                questions are sent to Groq AI when connected, without stored
+                profile or academic records. Do not put private details in
+                general questions.
               </p>
               <button
                 className="prompt-chip"
@@ -1161,7 +1162,7 @@ function WorkspaceApp() {
               {chat.map((m, i) => (
                 <div className="chat-message" key={i}>
                   <strong>{m.question}</strong>
-                  <p>{m.answer}</p>
+                  <p style={{ whiteSpace: "pre-wrap" }}>{m.answer}</p>
                 </div>
               ))}
               <form
@@ -3043,7 +3044,7 @@ function ModuleSpotlight({ tab, assignments, pending, notices }) {
       Sparkles,
       "Your work, in focus",
       "Start with what's next.",
-      "Rules-based answers from your profile and workspace records.",
+      "Local records. General questions with Groq when connected.",
       "Profile + records",
       "English + Hindi",
     ],

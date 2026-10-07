@@ -13,6 +13,7 @@ import { z } from "zod";
 import * as defaultModels from "./models.js";
 import { attendanceAdvice, cgpa } from "./math.js";
 import { assistantIntents } from "./assistant-intents.js";
+import { generalAnswer } from "./groq.js";
 export function createApp({
   jwtSecret,
   clientOrigin = "http://localhost:5173",
@@ -1243,14 +1244,39 @@ export function createApp({
         .object({ message: z.string().trim().min(1).max(1000) })
         .parse(req.body);
       const intents = assistantIntents(message);
-      if (!intents.length)
+      if (!intents.length) {
+        const personal =
+          /\b(?:my|mera|meri|mere|me|mine|profile|account|student|college|university|phone|email|address|password|dob|birthday)\b|मेरा|मेरी|मेरे/i.test(
+            message,
+          );
+        if (!personal && process.env.GROQ_API_KEY && realm === "private") {
+          try {
+            const answer = await generalAnswer(message);
+            if (answer)
+              return res.json({
+                mode: "groq",
+                intent: "general",
+                answer,
+                items: [],
+              });
+          } catch {
+            return res.json({
+              mode: "rules",
+              intent: "unavailable",
+              answer:
+                "General AI is temporarily unavailable or its free limit has been reached. Please try again later. Your local profile and academic answers still work.",
+              items: [],
+            });
+          }
+        }
         return res.json({
           mode: "rules",
           intent: "unknown",
           answer:
-            "I can help with your name, roll number, enrollment, attendance, results/CGPA, fees and pending assignments. Try a specific question like 'my roll no' or 'meri attendance'. I don't have a general AI connected.",
+            "I can help locally with your name, roll number, enrollment, attendance, results/CGPA, fees and pending assignments. Try a specific question like 'my roll no' or 'meri attendance'. Personal questions I don't recognize stay local. General AI is available only when connected in the private workspace.",
           items: [],
         });
+      }
       const answers = [],
         items = [];
       const profile = realm === "private" ? req.user.privateProfile : null;
