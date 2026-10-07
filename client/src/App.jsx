@@ -224,8 +224,9 @@ function WorkspaceApp() {
         </header>
         <main className="admin-fees">
           <div className="demo-warning">
-            Fictional-data demo. Do not enter real student information. Demo
-            changes may be reset.
+            {user.privateWorkspace
+              ? "Private fictional-data workspace. Only your login can access these records. Public demo admin review is unavailable. Uploaded files may reset; do not upload real documents."
+              : "Fictional-data demo. Do not enter real student information. Demo changes may be reset."}
           </div>
           <nav className="section-menu" aria-label="Admin sections">
             {["Fees", "Requests"].map((n) => (
@@ -466,8 +467,9 @@ function WorkspaceApp() {
         </header>
         <main className="content">
           <div className="demo-banner">
-            Fictional-data demo. Do not enter real student information. Demo
-            changes may be reset.
+            {user.privateWorkspace
+              ? "Private fictional-data workspace. Only your login can access these records. Public demo admin review is unavailable. Uploaded files may reset; do not upload real documents."
+              : "Fictional-data demo. Do not enter real student information. Demo changes may be reset."}
           </div>
           <div className="erp-profile">
             <div className="erp-profile-avatar">

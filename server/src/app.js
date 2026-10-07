@@ -100,6 +100,7 @@ export function createApp({
     email: u.email,
     role: u.role,
     rollNumber: u.rollNumber,
+    privateWorkspace: realm === "private",
   });
   const loginResponse = (res, u) => {
     res.cookie(
