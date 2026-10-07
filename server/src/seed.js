@@ -9,6 +9,10 @@ import {
   Result,
   Notice,
   Fee,
+  ClassSession,
+  Exam,
+  Book,
+  Loan,
 } from "./models.js";
 export async function seed() {
   if (await User.exists({ email: "student@smarterp.demo" })) return;
@@ -98,6 +102,63 @@ export async function seed() {
     ],
   ])
     await Notice.create({ title, body, createdBy: teacher.id });
+  for (const [ci, day, start, end, room, kind] of [
+    [0, 1, "09:00", "10:00", "A-201", "Lecture"],
+    [1, 1, "10:15", "11:15", "A-203", "Lecture"],
+    [2, 2, "11:30", "12:30", "B-102", "Lecture"],
+    [0, 3, "14:00", "16:00", "Lab-3", "Lab"],
+    [3, 4, "09:00", "10:00", "A-204", "Tutorial"],
+    [1, 5, "10:15", "12:15", "Lab-2", "Lab"],
+  ])
+    await ClassSession.create({
+      course: courses[ci].id,
+      day,
+      start,
+      end,
+      room,
+      kind,
+    });
+  for (const [ci, days, room, seating] of [
+    [0, 12, "Exam Hall A", "Row B · Seat 12"],
+    [1, 14, "Exam Hall A", "Row C · Seat 08"],
+    [2, 16, "Exam Hall B", "Row A · Seat 21"],
+    [3, 18, "Exam Hall B", "Row D · Seat 03"],
+  ]) {
+    const dt = new Date(Date.now() + days * 864e5);
+    dt.setUTCHours(3, 30, 0, 0);
+    await Exam.create({
+      course: courses[ci].id,
+      title: "Mid-semester assessment",
+      startsAt: dt,
+      durationMinutes: 120,
+      room,
+      seating,
+    });
+  }
+  const book = await Book.create({
+    title: "Introduction to Algorithms",
+    author: "Cormen et al.",
+    code: "DEMO-CS-001",
+    copies: 4,
+  });
+  await Book.create({
+    title: "Database System Concepts",
+    author: "Silberschatz et al.",
+    code: "DEMO-CS-002",
+    copies: 3,
+  });
+  await Book.create({
+    title: "Computer Networking: A Top-Down Approach",
+    author: "Kurose & Ross",
+    code: "DEMO-CS-003",
+    copies: 2,
+  });
+  await Loan.create({
+    book: book.id,
+    student: student.id,
+    issuedAt: new Date(Date.now() - 12 * 864e5),
+    dueAt: new Date(Date.now() + 2 * 864e5),
+  });
   await Fee.create({
     student: student.id,
     title: "Tuition fee",

@@ -23,6 +23,9 @@ import {
   Sparkles,
   Bell,
   Wallet,
+  CalendarDays,
+  LibraryBig,
+  NotebookPen,
 } from "lucide-react";
 const navigation = [
   ["Dashboard", LayoutDashboard],
@@ -33,6 +36,9 @@ const navigation = [
   ["Notices", Megaphone],
   ["Assistant", MessageSquare],
   ["Courses", BookOpen],
+  ["Timetable", CalendarDays],
+  ["Library", LibraryBig],
+  ["Exams", NotebookPen],
 ];
 async function api(url, options = {}) {
   const response = await fetch("/api" + url, {
@@ -89,7 +95,9 @@ function Modal({ title, onClose, children }) {
 export default function App() {
   const [user, setUser] = useState(null),
     [loading, setLoading] = useState(true),
-    [tab, setTab] = useState("Dashboard"),
+    [tab, setTab] = useState(
+      decodeURIComponent(location.pathname.slice(1)) || "Dashboard",
+    ),
     [dark, setDark] = useState(localStorage.getItem("theme") === "dark"),
     [menu, setMenu] = useState(false),
     [error, setError] = useState(""),
@@ -113,6 +121,31 @@ export default function App() {
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+  useEffect(() => {
+    const change = () => {
+      const t = decodeURIComponent(location.pathname.slice(1));
+      setTab(
+        [
+          "Dashboard",
+          "Assignments",
+          "Attendance",
+          "Results",
+          "Fees",
+          "Notices",
+          "Assistant",
+          "Courses",
+          "Timetable",
+          "Library",
+          "Exams",
+        ].includes(t)
+          ? t
+          : "Dashboard",
+      );
+      setMenu(false);
+    };
+    window.addEventListener("popstate", change);
+    return () => window.removeEventListener("popstate", change);
+  }, []);
   async function refresh() {
     if (user?.role === "admin") return;
     const [c, a, t, r, n] = await Promise.all([
@@ -130,7 +163,7 @@ export default function App() {
   }
   useEffect(() => {
     if (user) {
-      setTab("Dashboard");
+      setTab(decodeURIComponent(location.pathname.slice(1)) || "Dashboard");
       setError("");
       refresh().catch((e) => setError(e.message));
     }
@@ -192,6 +225,7 @@ export default function App() {
     attended = attendance.reduce((s, a) => s + a.attended, 0),
     percentage = total ? Math.round((attended / total) * 100) : null;
   function go(name) {
+    history.pushState({}, "", "/" + encodeURIComponent(name));
     setTab(name);
     setMenu(false);
   }
@@ -474,20 +508,28 @@ export default function App() {
               })}
             </span>
           </div>
+          {tab !== "Dashboard" && (
+            <div className="module-heading">
+              <button className="small-btn" onClick={() => go("Dashboard")}>
+                ← Campus home
+              </button>
+              <Badge>{tab} workspace</Badge>
+            </div>
+          )}
           {tab === "Dashboard" && (
             <>
               <div className="welcome-banner">
                 <div>
-                  <Badge>SMARTER DAYS START HERE</Badge>
+                  <Badge>CAMPUS OVERVIEW</Badge>
                   <h2>
                     {teacher
                       ? "Make room for better teaching."
-                      : "One workspace. Zero guesswork."}
+                      : "Your campus overview"}
                   </h2>
                   <p>
                     {teacher
                       ? "Create assignments, track submissions and keep your classes moving."
-                      : "Your deadlines, attendance and progress. Finally on the same page."}
+                      : "Check upcoming work, track attendance and open your campus tools."}
                   </p>
                   <button
                     className="banner-btn"
@@ -563,6 +605,9 @@ export default function App() {
                   tone="blue"
                 />
               </div>
+              {!teacher && (
+                <Analytics attendance={attendance} results={results} />
+              )}
               <div className="dashboard-grid">
                 <section className="panel">
                   <div className="panel-title">
@@ -712,6 +757,9 @@ export default function App() {
                 ))}
               </div>
             </>
+          )}
+          {["Timetable", "Library", "Exams"].includes(tab) && (
+            <CampusModule key={tab} type={tab} user={user} courses={courses} />
           )}
           {tab === "Fees" && <Fees teacher={teacher} user={user} />}
           {tab === "Results" && (
@@ -2045,5 +2093,412 @@ function Fees({ teacher, user }) {
         </Modal>
       )}
     </>
+  );
+}
+function Analytics({ attendance, results }) {
+  return (
+    <div className="analytics-grid">
+      <section className="panel">
+        <div className="panel-title">
+          <h2>Attendance health</h2>
+          <Badge>75% target</Badge>
+        </div>
+        {attendance.map((a) => {
+          const pct = a.total ? Math.round((a.attended / a.total) * 100) : 0;
+          return (
+            <div className="chart-row" key={a._id}>
+              <div>
+                <strong>{a.course.code}</strong>
+                <span>
+                  {pct}% · {a.attended}/{a.total} classes
+                </span>
+              </div>
+              <div className="chart-track">
+                <div
+                  style={{
+                    width: `${pct}%`,
+                    background: pct < 75 ? "#ef7867" : "#2eb7a6",
+                  }}
+                />
+                <span className="chart-target" style={{ left: "75%" }} />
+              </div>
+              <small>
+                {pct < 75
+                  ? `Attend ${a.mustAttend} consecutive classes to recover`
+                  : "On track"}
+              </small>
+            </div>
+          );
+        })}
+        <p className="muted">
+          Based on recorded class totals, not projected attendance.
+        </p>
+      </section>
+      <section className="panel">
+        <div className="panel-title">
+          <h2>Grade profile</h2>
+          <Badge>CGPA {results.cgpa?.toFixed(2) || "--"}</Badge>
+        </div>
+        {results.rows.map((r) => (
+          <div className="chart-row" key={r._id}>
+            <div>
+              <strong>{r.course.code}</strong>
+              <span>
+                {r.gradePoint.toFixed(1)}/10 · {r.course.credits} credits
+              </span>
+            </div>
+            <div className="chart-track">
+              <div
+                style={{
+                  width: `${r.gradePoint * 10}%`,
+                  background: "#7b8df1",
+                }}
+              />
+            </div>
+          </div>
+        ))}
+        <p className="muted">
+          Credit-weighted grades by course. No invented semester history.
+        </p>
+      </section>
+    </div>
+  );
+}
+function CampusModule({ type, user, courses }) {
+  const [data, setData] = useState(null),
+    [error, setError] = useState(""),
+    [day, setDay] = useState(new Date().getDay() || 7),
+    [search, setSearch] = useState(""),
+    [form, setForm] = useState(false),
+    [busy, setBusy] = useState(false);
+  const endpoint =
+    type === "Library" ? "library" : type === "Exams" ? "exams" : "timetable";
+  const load = () => api("/" + endpoint).then(setData);
+  useEffect(() => {
+    setData(null);
+    setError("");
+    load().catch((e) => setError(e.message));
+  }, [type]);
+  const mutate = async (fn) => {
+    setBusy(true);
+    setError("");
+    try {
+      await fn();
+      await load();
+      setForm(false);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const days = [
+    "",
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+  ];
+  async function save(e) {
+    e.preventDefault();
+    const f = new FormData(e.currentTarget);
+    const b = Object.fromEntries(f);
+    if (type === "Timetable") b.day = Number(b.day);
+    else {
+      b.startsAt = new Date(b.startsAt).toISOString();
+      b.durationMinutes = Number(b.durationMinutes);
+    }
+    await mutate(() =>
+      api("/" + endpoint, { method: "POST", body: JSON.stringify(b) }),
+    );
+  }
+  function downloadExam(x) {
+    const start = new Date(x.startsAt),
+      end = new Date(start.getTime() + x.durationMinutes * 60000);
+    const stamp = (d) =>
+      d
+        .toISOString()
+        .replace(/[-:]/g, "")
+        .replace(/\.\d{3}/, "");
+    const esc = (t) =>
+      String(t)
+        .replace(/\\/g, "\\\\")
+        .replace(/\n/g, "\\n")
+        .replace(/[,;]/g, "\\$&");
+    const text = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//SmartERP//Fictional Demo//EN",
+      "BEGIN:VEVENT",
+      `UID:${x._id}@smarterp.demo`,
+      `DTSTAMP:${stamp(new Date())}`,
+      `DTSTART:${stamp(start)}`,
+      `DTEND:${stamp(end)}`,
+      `SUMMARY:${esc("DEMO: " + x.course.name + " - " + x.title)}`,
+      `LOCATION:${esc(x.room)}`,
+      "DESCRIPTION:Fictional exam schedule. Not an official university datesheet.",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+    const url = URL.createObjectURL(
+      new Blob([text], { type: "text/calendar" }),
+    );
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "demo-exam.ics";
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 500);
+  }
+  return (
+    <section className="panel campus-module">
+      <div className="panel-title">
+        <h2>
+          {type === "Timetable"
+            ? "Your week, planned"
+            : type === "Library"
+              ? "Library workspace"
+              : "Exam planner"}
+        </h2>
+        {type !== "Library" && user.role !== "student" && (
+          <button className="primary" onClick={() => setForm(true)}>
+            <Plus size={16} />
+            Add {type === "Exams" ? "exam" : "class"}
+          </button>
+        )}
+      </div>
+      <p className="muted">
+        Fictional demo {type.toLowerCase()} records. Nothing here is an official
+        college schedule or library entry.
+      </p>
+      {error && (
+        <p role="alert" className="fee-error">
+          {error}
+        </p>
+      )}
+      {!data ? (
+        <p>Loading {type.toLowerCase()}...</p>
+      ) : type === "Timetable" ? (
+        <>
+          <div className="day-picker">
+            {days.slice(1).map((d, i) => (
+              <button
+                className={day === i + 1 ? "active" : ""}
+                key={d}
+                onClick={() => setDay(i + 1)}
+              >
+                {d.slice(0, 3)}
+              </button>
+            ))}
+          </div>
+          <h3>{days[day]}</h3>
+          {data
+            .filter((x) => x.day === day)
+            .map((x) => (
+              <article className="schedule-card" key={x._id}>
+                <div className="schedule-time">
+                  {x.start}
+                  <small>{x.end}</small>
+                </div>
+                <div>
+                  <Badge>{x.kind}</Badge>
+                  <h3>{x.course.name}</h3>
+                  <p>
+                    {x.course.code} · {x.room}
+                  </p>
+                </div>
+              </article>
+            ))}
+          {!data.some((x) => x.day === day) && (
+            <Empty>No classes scheduled for {days[day]}.</Empty>
+          )}
+        </>
+      ) : type === "Exams" ? (
+        <div className="exam-grid">
+          {data.map((x) => (
+            <article className="exam-card" key={x._id}>
+              <Badge>{x.course.code}</Badge>
+              <h3>{x.course.name}</h3>
+              <p>{x.title}</p>
+              <strong>
+                {new Date(x.startsAt).toLocaleString("en-IN", {
+                  timeZone: "Asia/Kolkata",
+                  dateStyle: "medium",
+                  timeStyle: "short",
+                })}{" "}
+                IST
+              </strong>
+              <p>
+                {x.durationMinutes} minutes · {x.room}
+              </p>
+              <p>Demo seating: {x.seating}</p>
+              <button className="small-btn" onClick={() => downloadExam(x)}>
+                <Download size={15} />
+                Save demo calendar file
+              </button>
+            </article>
+          ))}
+        </div>
+      ) : (
+        <>
+          <nav className="section-menu" aria-label="Library sections">
+            <a href="#my-books">My issued books</a>
+            <a href="#catalogue">Book catalogue</a>
+          </nav>
+          <h3 id="my-books">My issued books</h3>
+          {data.loans.map((l) => (
+            <article className="loan-card" key={l._id}>
+              <div>
+                <h3>{l.book.title}</h3>
+                <p>
+                  Due {date(l.dueAt)} ·{" "}
+                  {l.returnedAt
+                    ? "Returned"
+                    : new Date(l.dueAt) < new Date()
+                      ? "Overdue"
+                      : "Issued"}{" "}
+                  · Renewals {l.renewals}/1
+                </p>
+                {user.role === "admin" && <small>{l.student.name}</small>}
+              </div>
+              {!l.returnedAt && (
+                <button
+                  className="small-btn"
+                  disabled={
+                    busy || l.renewals >= 1 || new Date(l.dueAt) < new Date()
+                  }
+                  onClick={() =>
+                    mutate(() =>
+                      api("/library/" + l._id + "/renew", { method: "POST" }),
+                    )
+                  }
+                >
+                  Renew for 7 days
+                </button>
+              )}
+            </article>
+          ))}
+          {!data.loans.length && <Empty>No issued books.</Empty>}
+          <h3 id="catalogue">Book catalogue</h3>
+          <label className="catalogue-search">
+            Search title or author
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Algorithms, databases..."
+            />
+          </label>
+          <div className="exam-grid">
+            {data.books
+              .filter((b) =>
+                (b.title + " " + b.author)
+                  .toLowerCase()
+                  .includes(search.toLowerCase()),
+              )
+              .map((b) => (
+                <article className="exam-card" key={b._id}>
+                  <LibraryBig size={26} />
+                  <h3>{b.title}</h3>
+                  <p>{b.author}</p>
+                  <Badge>
+                    {b.available} of {b.copies} copies available
+                  </Badge>
+                  <small>{b.code}</small>
+                </article>
+              ))}
+          </div>
+          <p className="muted">
+            Issuing and returns are admin-only API actions in this demo. Renewal
+            is limited to one, before the due date. No fine is charged by this
+            demo.
+          </p>
+        </>
+      )}
+      {form && (
+        <Modal
+          title={type === "Exams" ? "Add demo exam" : "Add scheduled class"}
+          onClose={() => setForm(false)}
+        >
+          <form className="fee-form" onSubmit={save}>
+            <label>
+              Course
+              <select name="course" required>
+                {courses.map((c) => (
+                  <option key={c._id} value={c._id}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {type === "Timetable" ? (
+              <>
+                <label>
+                  Day
+                  <select name="day">
+                    {days.slice(1).map((d, i) => (
+                      <option key={d} value={i + 1}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label>
+                  Start
+                  <input name="start" type="time" required />
+                </label>
+                <label>
+                  End
+                  <input name="end" type="time" required />
+                </label>
+                <label>
+                  Class type
+                  <select name="kind">
+                    <option>Lecture</option>
+                    <option>Lab</option>
+                    <option>Tutorial</option>
+                  </select>
+                </label>
+              </>
+            ) : (
+              <>
+                <label>
+                  Exam title
+                  <input name="title" required maxLength={100} />
+                </label>
+                <label>
+                  Starts at (local time)
+                  <input name="startsAt" type="datetime-local" required />
+                </label>
+                <label>
+                  Duration (minutes)
+                  <input
+                    name="durationMinutes"
+                    type="number"
+                    min="15"
+                    max="360"
+                    defaultValue="120"
+                    required
+                  />
+                </label>
+                <label>
+                  Demo seating
+                  <input name="seating" required maxLength={100} />
+                </label>
+              </>
+            )}
+            <label>
+              Room
+              <input name="room" required maxLength={50} />
+            </label>
+            {error && <p role="alert">{error}</p>}
+            <button className="primary" disabled={busy}>
+              Save fictional schedule
+            </button>
+          </form>
+        </Modal>
+      )}
+    </section>
   );
 }

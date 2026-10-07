@@ -112,3 +112,58 @@ export const Fee = model(
     { timestamps: true },
   ),
 );
+export const ClassSession = model(
+  "ClassSession",
+  new Schema(
+    {
+      course: { type: Schema.Types.ObjectId, ref: "Course", required: true },
+      day: { type: Number, min: 1, max: 7 },
+      start: String,
+      end: String,
+      room: String,
+      kind: String,
+    },
+    { timestamps: true },
+  ),
+);
+export const Exam = model(
+  "Exam",
+  new Schema(
+    {
+      course: { type: Schema.Types.ObjectId, ref: "Course", required: true },
+      title: String,
+      startsAt: Date,
+      durationMinutes: Number,
+      room: String,
+      seating: String,
+    },
+    { timestamps: true },
+  ),
+);
+export const Book = model(
+  "Book",
+  new Schema(
+    {
+      title: String,
+      author: String,
+      code: { type: String, unique: true },
+      copies: { type: Number, min: 1 },
+    },
+    { timestamps: true },
+  ),
+);
+export const Loan = model(
+  "Loan",
+  new Schema(
+    {
+      book: { type: Schema.Types.ObjectId, ref: "Book" },
+      student: { type: Schema.Types.ObjectId, ref: "User" },
+      issuedAt: Date,
+      dueAt: Date,
+      returnedAt: Date,
+      renewals: { type: Number, default: 0 },
+      returnedBy: { type: Schema.Types.ObjectId, ref: "User" },
+    },
+    { timestamps: true },
+  ),
+);

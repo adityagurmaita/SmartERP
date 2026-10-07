@@ -115,3 +115,9 @@ Next phases: real AI provider with scoped record access, scheduled/push/email al
 If deploying manually: build command `npm ci && npm run build && npm run prepare-demo`, start command `npm run demo:host`, environment `NODE_ENV=production`, `MONGOMS_DOWNLOAD_DIR=/opt/render/project/src/.cache/mongodb`. Choose the Free compute plan. Render free services may sleep after inactivity; check the host's current limits before deploying.
 
 The latest visual theme is based on observed plain blue panels, module grid and white layout of the requested college ERP. No university branding or real account data is included.
+
+## Campus workspace release
+
+Clean page-based navigation with browser history and direct module paths; separate student fee subsections and library menus; day-based weekly timetable; credit-weighted grade and recorded attendance charts; fictional exam datesheet, seating and calendar-file export. Faculty can add classes and exams for their courses. Class time/course and room overlaps are rejected. Students can renew their own issued books once before the due date.
+
+Library issue/return endpoints are admin-only; the accounts-admin UI remains fee-focused. The demo does not charge fines, send background reminders or use a connected AI provider. Attendance and grade charts describe existing records, not invented semester trends.

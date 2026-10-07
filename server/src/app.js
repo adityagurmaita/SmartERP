@@ -19,6 +19,10 @@ import {
   Result,
   Notice,
   Fee,
+  ClassSession,
+  Exam,
+  Book,
+  Loan,
 } from "./models.js";
 import { attendanceAdvice, cgpa } from "./math.js";
 export function createApp({
@@ -560,12 +564,9 @@ export function createApp({
   };
   const feeReader = (req, res, next) => {
     if (!["student", "admin"].includes(req.user.role))
-      return res
-        .status(403)
-        .json({
-          message:
-            "Fee records are restricted to the student and accounts admin",
-        });
+      return res.status(403).json({
+        message: "Fee records are restricted to the student and accounts admin",
+      });
     next();
   };
   const feeScope = async (req) => {
@@ -710,6 +711,194 @@ export function createApp({
             "Reference: " + payment.reference,
           ].join("\n"),
         );
+    }),
+  );
+  const academicIds = async (req) =>
+    (
+      await Course.find(
+        req.user.role === "admin"
+          ? {}
+          : req.user.role === "teacher"
+            ? { teacher: req.user.id }
+            : { students: req.user.id },
+      ).select("_id")
+    ).map((c) => c.id);
+  app.get(
+    "/api/timetable",
+    auth,
+    wrap(async (req, res) =>
+      res.json(
+        await ClassSession.find({ course: { $in: await academicIds(req) } })
+          .populate("course", "name code")
+          .sort({ day: 1, start: 1 }),
+      ),
+    ),
+  );
+  app.get(
+    "/api/exams",
+    auth,
+    wrap(async (req, res) =>
+      res.json(
+        await Exam.find({ course: { $in: await academicIds(req) } })
+          .populate("course", "name code")
+          .sort({ startsAt: 1 }),
+      ),
+    ),
+  );
+  const academicWrite = (req, res, next) => {
+    if (!["teacher", "admin"].includes(req.user.role))
+      return res
+        .status(403)
+        .json({ message: "Faculty or admin access required" });
+    next();
+  };
+  const scheduleBody = z.object({
+    course: z.string().regex(/^[a-f\d]{24}$/i),
+    day: z.number().int().min(1).max(7),
+    start: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+    end: z.string().regex(/^(?:[01]\d|2[0-3]):[0-5]\d$/),
+    room: z.string().trim().min(1).max(50),
+    kind: z.enum(["Lecture", "Lab", "Tutorial"]),
+  });
+  app.post(
+    "/api/timetable",
+    auth,
+    academicWrite,
+    wrap(async (req, res) => {
+      const b = scheduleBody.parse(req.body);
+      if (!(await academicIds(req)).includes(b.course))
+        fail(403, "Course access denied");
+      if (b.end <= b.start) fail(400, "Class must end after it starts");
+      const conflict = await ClassSession.exists({
+        day: b.day,
+        start: { $lt: b.end },
+        end: { $gt: b.start },
+        $or: [{ room: b.room }, { course: b.course }],
+      });
+      if (conflict) fail(409, "Room or course overlaps another class");
+      res.status(201).json(await ClassSession.create(b));
+    }),
+  );
+  app.post(
+    "/api/exams",
+    auth,
+    academicWrite,
+    wrap(async (req, res) => {
+      const b = z
+        .object({
+          course: z.string().regex(/^[a-f\d]{24}$/i),
+          title: z.string().trim().min(2).max(100),
+          startsAt: z.string().datetime(),
+          durationMinutes: z.number().int().min(15).max(360),
+          room: z.string().trim().min(1).max(50),
+          seating: z.string().trim().min(1).max(100),
+        })
+        .parse(req.body);
+      if (!(await academicIds(req)).includes(b.course))
+        fail(403, "Course access denied");
+      res.status(201).json(await Exam.create(b));
+    }),
+  );
+  app.get(
+    "/api/library",
+    auth,
+    wrap(async (req, res) => {
+      const books = await Book.find().lean();
+      const open = await Loan.find({ returnedAt: null }).lean();
+      res.json({
+        books: books.map((b) => ({
+          ...b,
+          available: Math.max(
+            0,
+            b.copies -
+              open.filter((l) => String(l.book) === String(b._id)).length,
+          ),
+        })),
+        loans: await Loan.find(
+          req.user.role === "admin" ? {} : { student: req.user.id },
+        )
+          .populate("book")
+          .populate("student", "name rollNumber")
+          .sort({ dueAt: 1 }),
+        students:
+          req.user.role === "admin"
+            ? await User.find({ role: "student" }).select("name rollNumber")
+            : [],
+      });
+    }),
+  );
+  app.post(
+    "/api/library/issue",
+    auth,
+    admin,
+    wrap(async (req, res) => {
+      const b = z
+        .object({
+          book: z.string().regex(/^[a-f\d]{24}$/i),
+          student: z.string().regex(/^[a-f\d]{24}$/i),
+          dueAt: z.string().datetime(),
+        })
+        .parse(req.body);
+      const book = await Book.findById(b.book);
+      if (!book) fail(404, "Book not found");
+      if (!(await User.exists({ _id: b.student, role: "student" })))
+        fail(404, "Student not found");
+      if (new Date(b.dueAt) <= new Date())
+        fail(400, "Return deadline must be in the future");
+      if (
+        (await Loan.countDocuments({ book: b.book, returnedAt: null })) >=
+        book.copies
+      )
+        fail(409, "No copy available");
+      if (
+        await Loan.exists({
+          book: b.book,
+          student: b.student,
+          returnedAt: null,
+        })
+      )
+        fail(409, "Student already has this book");
+      res.status(201).json(await Loan.create({ ...b, issuedAt: new Date() }));
+    }),
+  );
+  app.post(
+    "/api/library/:id/renew",
+    auth,
+    wrap(async (req, res) => {
+      const loan = await Loan.findById(req.params.id);
+      if (!loan) fail(404, "Loan not found");
+      if (req.user.role !== "admin" && String(loan.student) !== req.user.id)
+        fail(403, "Loan access denied");
+      const updated = await Loan.findOneAndUpdate(
+        {
+          _id: loan.id,
+          returnedAt: null,
+          renewals: 0,
+          dueAt: { $gte: new Date() },
+        },
+        {
+          $inc: { renewals: 1 },
+          $set: { dueAt: new Date(loan.dueAt.getTime() + 7 * 864e5) },
+        },
+        { returnDocument: "after" },
+      );
+      if (!updated)
+        fail(400, "Only an active, non-overdue loan can be renewed once");
+      res.json(updated);
+    }),
+  );
+  app.post(
+    "/api/library/:id/return",
+    auth,
+    admin,
+    wrap(async (req, res) => {
+      const loan = await Loan.findOneAndUpdate(
+        { _id: req.params.id, returnedAt: null },
+        { $set: { returnedAt: new Date(), returnedBy: req.user.id } },
+        { returnDocument: "after" },
+      );
+      if (!loan) fail(400, "Active loan not found");
+      res.json(loan);
     }),
   );
   app.post(
