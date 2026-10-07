@@ -2856,3 +2856,6 @@ html[data-theme="dark"] .attendance-warning {
     font-size: 12px;
   }
 }
+.analytics-grid:has(> section:only-child) {
+  grid-template-columns: 1fr;
+}

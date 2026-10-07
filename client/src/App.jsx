@@ -773,7 +773,7 @@ function WorkspaceApp() {
                 )}
             </section>
           )}
-          {tab === "Dashboard" &&
+          {tab === "Attendance" &&
             user.privateWorkspace &&
             attendance.some((a) => a.percentage < 75) && (
               <button
@@ -802,7 +802,7 @@ function WorkspaceApp() {
               attendance={attendance}
             />
           )}
-          {tab === "Dashboard" && (
+          {tab === "Dashboard" && !user.privateWorkspace && (
             <>
               <div className="welcome-banner">
                 <div>
@@ -1014,6 +1014,13 @@ function WorkspaceApp() {
           )}
           {tab === "Attendance" && (
             <>
+              {user.privateWorkspace && (
+                <Analytics
+                  attendance={attendance}
+                  results={results}
+                  section="attendance"
+                />
+              )}
               <section className="panel calculator">
                 <h2>Plan your next class</h2>
                 <p>
@@ -1058,47 +1065,56 @@ function WorkspaceApp() {
           )}
           {tab === "Fees" && <Fees teacher={teacher} user={user} />}
           {tab === "Results" && (
-            <section className="panel">
-              <div className="panel-title">
-                <h2>{teacher ? "Published results" : "Academic progress"}</h2>
-                {!teacher && (
-                  <Badge tone="green">
-                    CGPA {results.cgpa?.toFixed(2) || "--"} / 10
-                  </Badge>
-                )}
-              </div>
-              <p className="muted">
-                CGPA = sum of (course credits × grade points) ÷ total graded
-                credits. Confirm your university's grading policy before using
-                this for official records.
-              </p>
-              {results.rows.length ? (
-                <div className="table-wrap">
-                  <table>
-                    <thead>
-                      <tr>
-                        <th>Course</th>
-                        <th>Code</th>
-                        <th>Credits</th>
-                        <th>Grade point</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {results.rows.map((r) => (
-                        <tr key={r._id}>
-                          <td>{r.course.name}</td>
-                          <td>{r.course.code}</td>
-                          <td>{r.course.credits}</td>
-                          <td>{r.gradePoint.toFixed(1)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <Empty>No grade points have been published yet.</Empty>
+            <>
+              {user.privateWorkspace && (
+                <Analytics
+                  attendance={attendance}
+                  results={results}
+                  section="grades"
+                />
               )}
-            </section>
+              <section className="panel">
+                <div className="panel-title">
+                  <h2>{teacher ? "Published results" : "Academic progress"}</h2>
+                  {!teacher && (
+                    <Badge tone="green">
+                      CGPA {results.cgpa?.toFixed(2) || "--"} / 10
+                    </Badge>
+                  )}
+                </div>
+                <p className="muted">
+                  CGPA = sum of (course credits × grade points) ÷ total graded
+                  credits. Confirm your university's grading policy before using
+                  this for official records.
+                </p>
+                {results.rows.length ? (
+                  <div className="table-wrap">
+                    <table>
+                      <thead>
+                        <tr>
+                          <th>Course</th>
+                          <th>Code</th>
+                          <th>Credits</th>
+                          <th>Grade point</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {results.rows.map((r) => (
+                          <tr key={r._id}>
+                            <td>{r.course.name}</td>
+                            <td>{r.course.code}</td>
+                            <td>{r.course.credits}</td>
+                            <td>{r.gradePoint.toFixed(1)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ) : (
+                  <Empty>No grade points have been published yet.</Empty>
+                )}
+              </section>
+            </>
           )}
           {tab === "Notices" && (
             <section className="panel">
@@ -2941,72 +2957,76 @@ function Fees({ teacher, user }) {
     </>
   );
 }
-function Analytics({ attendance, results }) {
+function Analytics({ attendance, results, section }) {
   return (
     <div className="analytics-grid">
-      <section className="panel">
-        <div className="panel-title">
-          <h2>Attendance health</h2>
-          <Badge>75% target</Badge>
-        </div>
-        {attendance.map((a) => {
-          const pct = a.total ? Math.round((a.attended / a.total) * 100) : 0;
-          return (
-            <div className="chart-row" key={a._id}>
+      {section !== "grades" && (
+        <section className="panel">
+          <div className="panel-title">
+            <h2>Attendance health</h2>
+            <Badge>75% target</Badge>
+          </div>
+          {attendance.map((a) => {
+            const pct = a.total ? Math.round((a.attended / a.total) * 100) : 0;
+            return (
+              <div className="chart-row" key={a._id}>
+                <div>
+                  <strong>{a.course.code}</strong>
+                  <span>
+                    {pct}% · {a.attended}/{a.total} classes
+                  </span>
+                </div>
+                <div className="chart-track">
+                  <div
+                    style={{
+                      width: `${pct}%`,
+                      background: pct < 75 ? "#ef7867" : "#2eb7a6",
+                    }}
+                  />
+                  <span className="chart-target" style={{ left: "75%" }} />
+                </div>
+                <small>
+                  {pct < 75
+                    ? `Attend ${a.mustAttend} consecutive classes to recover`
+                    : "On track"}
+                </small>
+              </div>
+            );
+          })}
+          <p className="muted">
+            Based on recorded class totals, not projected attendance.
+          </p>
+        </section>
+      )}
+      {section !== "attendance" && (
+        <section className="panel">
+          <div className="panel-title">
+            <h2>Grade profile</h2>
+            <Badge>CGPA {results.cgpa?.toFixed(2) || "--"}</Badge>
+          </div>
+          {results.rows.map((r) => (
+            <div className="chart-row" key={r._id}>
               <div>
-                <strong>{a.course.code}</strong>
+                <strong>{r.course.code}</strong>
                 <span>
-                  {pct}% · {a.attended}/{a.total} classes
+                  {r.gradePoint.toFixed(1)}/10 · {r.course.credits} credits
                 </span>
               </div>
               <div className="chart-track">
                 <div
                   style={{
-                    width: `${pct}%`,
-                    background: pct < 75 ? "#ef7867" : "#2eb7a6",
+                    width: `${r.gradePoint * 10}%`,
+                    background: "#7b8df1",
                   }}
                 />
-                <span className="chart-target" style={{ left: "75%" }} />
               </div>
-              <small>
-                {pct < 75
-                  ? `Attend ${a.mustAttend} consecutive classes to recover`
-                  : "On track"}
-              </small>
             </div>
-          );
-        })}
-        <p className="muted">
-          Based on recorded class totals, not projected attendance.
-        </p>
-      </section>
-      <section className="panel">
-        <div className="panel-title">
-          <h2>Grade profile</h2>
-          <Badge>CGPA {results.cgpa?.toFixed(2) || "--"}</Badge>
-        </div>
-        {results.rows.map((r) => (
-          <div className="chart-row" key={r._id}>
-            <div>
-              <strong>{r.course.code}</strong>
-              <span>
-                {r.gradePoint.toFixed(1)}/10 · {r.course.credits} credits
-              </span>
-            </div>
-            <div className="chart-track">
-              <div
-                style={{
-                  width: `${r.gradePoint * 10}%`,
-                  background: "#7b8df1",
-                }}
-              />
-            </div>
-          </div>
-        ))}
-        <p className="muted">
-          Credit-weighted grades by course. No invented semester history.
-        </p>
-      </section>
+          ))}
+          <p className="muted">
+            Credit-weighted grades by course. No invented semester history.
+          </p>
+        </section>
+      )}
     </div>
   );
 }
