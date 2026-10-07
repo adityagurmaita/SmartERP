@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  UserRound,
   GraduationCap,
   LayoutDashboard,
   ClipboardList,
@@ -29,6 +30,7 @@ import {
 } from "lucide-react";
 const navigation = [
   ["Dashboard", LayoutDashboard],
+  ["Profile", UserRound],
   ["Assignments", ClipboardList],
   ["Attendance", CalendarCheck],
   ["Results", ChartNoAxesCombined],
@@ -108,6 +110,9 @@ function WorkspaceApp() {
     ),
     [dark, setDark] = useState(localStorage.getItem("theme") === "dark"),
     [menu, setMenu] = useState(false),
+    [showAlerts, setShowAlerts] = useState(false),
+    [feeAlerts, setFeeAlerts] = useState([]),
+    [feeAlertError, setFeeAlertError] = useState(""),
     [error, setError] = useState(""),
     [busy, setBusy] = useState(false);
   const [courses, setCourses] = useState([]),
@@ -130,11 +135,25 @@ function WorkspaceApp() {
       .finally(() => setLoading(false));
   }, []);
   useEffect(() => {
+    if (!user?.privateWorkspace) return;
+    api("/fees")
+      .then((d) =>
+        setFeeAlerts(
+          d.rows.filter(
+            (f) =>
+              f.amountPaise > f.payments.reduce((s, p) => s + p.amountPaise, 0),
+          ),
+        ),
+      )
+      .catch((e) => setFeeAlertError(e.message));
+  }, [user, tab]);
+  useEffect(() => {
     const change = () => {
       const t = decodeURIComponent(location.pathname.slice(1));
       setTab(
         [
           "Dashboard",
+          "Profile",
           "Assignments",
           "Attendance",
           "Results",
@@ -357,16 +376,17 @@ function WorkspaceApp() {
           {navigation
             .filter(
               ([n]) =>
-                !teacher ||
-                ![
-                  "Attendance",
-                  "Assistant",
-                  "Fees",
-                  "Applications",
-                  "Hostel",
-                  "Grievances",
-                  "Clubs",
-                ].includes(n),
+                (n !== "Profile" || user.privateWorkspace) &&
+                (!teacher ||
+                  ![
+                    "Attendance",
+                    "Assistant",
+                    "Fees",
+                    "Applications",
+                    "Hostel",
+                    "Grievances",
+                    "Clubs",
+                  ].includes(n)),
             )
             .map(([name, Icon]) => (
               <button
@@ -442,19 +462,33 @@ function WorkspaceApp() {
             </button>
             <button
               className="icon-btn notification"
-              aria-label="View deadline alerts"
-              onClick={() => go("Assignments")}
+              aria-label={
+                user.privateWorkspace
+                  ? "View campus alerts"
+                  : "View deadline alerts"
+              }
+              onClick={() =>
+                user.privateWorkspace
+                  ? setShowAlerts(!showAlerts)
+                  : go("Assignments")
+              }
             >
               <Bell size={19} />
-              {pending.length > 0 && <i />}
+              {(pending.length > 0 ||
+                attendance.some((a) => a.percentage < 75) ||
+                feeAlerts.length > 0) && <i />}
             </button>
-            <div className="avatar">
+            <button
+              className="avatar profile-link"
+              aria-label="Open my profile"
+              onClick={() => user.privateWorkspace && go("Profile")}
+            >
               {user.name
                 .split(" ")
                 .map((n) => n[0])
                 .slice(0, 2)
                 .join("")}
-            </div>
+            </button>
             <div className="profile">
               <strong>{user.name}</strong>
               <small>
@@ -471,6 +505,28 @@ function WorkspaceApp() {
               ? "Private fictional-data workspace. Only your login can access these records. Public demo admin review is unavailable. Uploaded files may reset; do not upload real documents."
               : "Fictional-data demo. Do not enter real student information. Demo changes may be reset."}
           </div>
+          {user.privateWorkspace && tab === "Dashboard" && (
+            <section className="private-dashboard-identity">
+              <div className="erp-profile-avatar">
+                {user.name
+                  .split(" ")
+                  .map((n) => n[0])
+                  .slice(0, 2)
+                  .join("")}
+              </div>
+              <div>
+                <small>MY PRIVATE STUDENT WORKSPACE</small>
+                <h2>{user.name}</h2>
+                <p>
+                  Roll {user.rollNumber || "Not provided"} · {courses.length}{" "}
+                  demo courses
+                </p>
+              </div>
+              <button className="small-btn" onClick={() => go("Profile")}>
+                View my profile <ChevronRight size={15} />
+              </button>
+            </section>
+          )}
           <div className="erp-profile">
             <div className="erp-profile-avatar">
               {user.name
@@ -498,20 +554,26 @@ function WorkspaceApp() {
               <b>{user.email}</b>
             </div>
           </div>
-          <div className="erp-modules">
+          <div
+            className={
+              "erp-modules " +
+              (user.privateWorkspace ? "private-module-menu" : "")
+            }
+          >
             {navigation
               .filter(
                 ([n]) =>
-                  !teacher ||
-                  ![
-                    "Attendance",
-                    "Assistant",
-                    "Fees",
-                    "Applications",
-                    "Hostel",
-                    "Grievances",
-                    "Clubs",
-                  ].includes(n),
+                  (n !== "Profile" || user.privateWorkspace) &&
+                  (!teacher ||
+                    ![
+                      "Attendance",
+                      "Assistant",
+                      "Fees",
+                      "Applications",
+                      "Hostel",
+                      "Grievances",
+                      "Clubs",
+                    ].includes(n)),
               )
               .map(([name, Icon]) => (
                 <button
@@ -567,6 +629,135 @@ function WorkspaceApp() {
               </button>
               <Badge>{tab} workspace</Badge>
             </div>
+          )}
+          {showAlerts && user.privateWorkspace && (
+            <section className="panel campus-alerts">
+              <div className="panel-title">
+                <h2>Campus alerts</h2>
+                <button
+                  className="icon-btn"
+                  aria-label="Close campus alerts"
+                  onClick={() => setShowAlerts(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+              <p className="muted">
+                Based on your fictional workspace records. In-app only, not
+                official college reminders.
+              </p>
+              {attendance
+                .filter((a) => a.percentage < 75)
+                .map((a) => (
+                  <button
+                    className="campus-alert-row"
+                    key={a._id}
+                    onClick={() => {
+                      go("Attendance");
+                      setShowAlerts(false);
+                    }}
+                  >
+                    <CalendarCheck size={19} />
+                    <span>
+                      <strong>
+                        {a.course.name}: {Math.round(a.percentage)}% attendance
+                      </strong>
+                      <small>
+                        Below the 75% target. Open attendance for the catch-up
+                        plan.
+                      </small>
+                    </span>
+                  </button>
+                ))}
+              {feeAlerts.map((f) => (
+                <button
+                  className="campus-alert-row"
+                  key={f._id}
+                  onClick={() => {
+                    go("Fees");
+                    setShowAlerts(false);
+                  }}
+                >
+                  <Wallet size={19} />
+                  <span>
+                    <strong>
+                      {f.title || f.category || "Fee"}:{" "}
+                      {new Date(f.dueAt) < new Date()
+                        ? "overdue"
+                        : "due " + date(f.dueAt)}
+                    </strong>
+                    <small>
+                      {new Intl.NumberFormat("en-IN", {
+                        style: "currency",
+                        currency: "INR",
+                      }).format(
+                        (f.amountPaise -
+                          f.payments.reduce((s, p) => s + p.amountPaise, 0)) /
+                          100,
+                      )}{" "}
+                      demo balance remaining
+                    </small>
+                  </span>
+                </button>
+              ))}
+              {pending.length > 0 && (
+                <button
+                  className="campus-alert-row"
+                  onClick={() => {
+                    go("Assignments");
+                    setShowAlerts(false);
+                  }}
+                >
+                  <ClipboardList size={19} />
+                  <span>
+                    <strong>{pending.length} assignments pending</strong>
+                    <small>Open assignment deadlines</small>
+                  </span>
+                </button>
+              )}
+              {feeAlertError && (
+                <p role="alert">
+                  Could not load fee alerts. Open Fees to check your records.
+                </p>
+              )}
+              {!pending.length &&
+                !feeAlerts.length &&
+                !attendance.some((a) => a.percentage < 75) && (
+                  <p className="muted">
+                    No attendance or assignment alerts. Fee records may still be
+                    loading.
+                  </p>
+                )}
+            </section>
+          )}
+          {tab === "Dashboard" &&
+            user.privateWorkspace &&
+            attendance.some((a) => a.percentage < 75) && (
+              <button
+                className="attendance-warning"
+                onClick={() => go("Attendance")}
+              >
+                <CalendarCheck size={18} />
+                <span>
+                  <strong>Attendance needs attention</strong>
+                  <small>
+                    {attendance
+                      .filter((a) => a.percentage < 75)
+                      .map((a) => a.course.code)
+                      .join(", ")}{" "}
+                    below 75%. View your catch-up plan.
+                  </small>
+                </span>
+                <ChevronRight size={16} />
+              </button>
+            )}
+          {tab === "Profile" && user.privateWorkspace && (
+            <StudentProfile
+              user={user}
+              courses={courses}
+              results={results}
+              attendance={attendance}
+            />
           )}
           {tab === "Dashboard" && (
             <>
@@ -1398,6 +1589,123 @@ function AttendanceCalculator() {
               ? `Attend the next ${need} classes to reach 75%.`
               : `You can miss ${miss} more classes and stay at or above 75%.`}
       </div>
+    </div>
+  );
+}
+function StudentProfile({ user, courses, results, attendance }) {
+  const [section, setSection] = useState("Personal details");
+  const details = {
+    "Personal details": [
+      ["Full name", user.name],
+      ["Roll number", user.rollNumber || "Not provided"],
+      ["Email address", user.email],
+      ["Phone number", "Not provided"],
+      ["Date of birth", "Not provided"],
+      ["Gender", "Not provided"],
+      ["Address", "Not provided"],
+    ],
+    "Academic details": [
+      ["Program", "Computer Science - demo workspace"],
+      ["Branch", "Computing - fictional demo"],
+      ["Semester", "Semester 5 - demo fee records"],
+      ["Enrollment status", "Active demo account"],
+      ["Academic year", "Not provided"],
+      ["Admission number", "Not provided"],
+      [
+        "CGPA",
+        results.cgpa == null
+          ? "Not recorded"
+          : results.cgpa.toFixed(2) + " / 10 (fictional)",
+      ],
+    ],
+    "Family and mentor": [
+      ["Parent / guardian name", "Not provided"],
+      ["Guardian contact", "Not provided"],
+      ["Mentor name", "Not provided"],
+      ["Mentor contact", "Not provided"],
+      ["Emergency contact", "Not provided"],
+    ],
+  };
+  return (
+    <div className="student-profile-page">
+      <section className="student-profile-hero">
+        <div className="student-profile-photo">
+          {user.name
+            .split(" ")
+            .map((n) => n[0])
+            .slice(0, 2)
+            .join("")}
+          <small>No photo added</small>
+        </div>
+        <div>
+          <Badge>PRIVATE STUDENT ACCOUNT</Badge>
+          <h2>{user.name}</h2>
+          <p>Roll {user.rollNumber || "Not provided"}</p>
+          <p>{user.email}</p>
+          <small>
+            Personal details supplied by you. Academic records are fictional
+            demo data, not an official college record.
+          </small>
+        </div>
+      </section>
+      <div className="profile-section-menu">
+        {Object.keys(details).map((n) => (
+          <button
+            className={section === n ? "active" : ""}
+            key={n}
+            onClick={() => setSection(n)}
+          >
+            {n}
+          </button>
+        ))}
+      </div>
+      <section className="panel">
+        <div className="panel-title">
+          <h2>{section}</h2>
+        </div>
+        <dl className="profile-details-grid">
+          {details[section].map(([name, value]) => (
+            <div key={name}>
+              <dt>{name}</dt>
+              <dd>{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+      <section className="panel">
+        <div className="panel-title">
+          <h2>My enrolled demo subjects</h2>
+          <Badge>{courses.length} courses</Badge>
+        </div>
+        {courses.map((c) => {
+          const a = attendance.find((a) => a.course._id === c._id),
+            r = results.rows?.find((r) => r.course._id === c._id);
+          return (
+            <div className="profile-subject" key={c._id}>
+              <div>
+                <strong>{c.name}</strong>
+                <p>
+                  {c.code} · {c.credits} credits
+                </p>
+              </div>
+              <div>
+                <strong>
+                  {a
+                    ? Math.round(a.percentage) + "% attendance"
+                    : "Not recorded"}
+                </strong>
+                <p>
+                  {r ? "Grade " + r.gradePoint + " / 10" : "Grade not recorded"}
+                </p>
+              </div>
+            </div>
+          );
+        })}
+        <p className="muted">
+          Family, contact and mentor fields stay blank until you provide them.
+          No photo is assumed or copied from your college.
+        </p>
+      </section>
     </div>
   );
 }
