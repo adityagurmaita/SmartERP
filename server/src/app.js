@@ -683,6 +683,51 @@ export function createApp({
       res.status(201).json(saved);
     }),
   );
+  app.post(
+    "/api/fees/:id/demo-checkout",
+    auth,
+    wrap(async (req, res) => {
+      if (!demoPublic)
+        fail(
+          403,
+          "Simulated checkout is only available in the public fictional demo",
+        );
+      if (req.user.role !== "student") fail(403, "Student demo checkout only");
+      const fee = await feeAccess(req, req.params.id);
+      const { expectedAmountPaise } = z
+        .object({
+          expectedAmountPaise: z.number().int().positive().max(100000000),
+        })
+        .strict()
+        .parse(req.body);
+      const payment = {
+        amountPaise: expectedAmountPaise,
+        paidAt: new Date(),
+        reference: "Student simulated checkout - NO REAL MONEY",
+        receiptNumber: "DEMO-" + randomUUID().slice(0, 8).toUpperCase(),
+        recordedBy: req.user.id,
+      };
+      const saved = await Fee.findOneAndUpdate(
+        {
+          _id: fee._id,
+          student: req.user.id,
+          $expr: {
+            $eq: [
+              {
+                $subtract: ["$amountPaise", { $sum: "$payments.amountPaise" }],
+              },
+              expectedAmountPaise,
+            ],
+          },
+        },
+        { $push: { payments: payment } },
+        { returnDocument: "after" },
+      );
+      if (!saved)
+        fail(409, "Balance changed or already paid. Refresh and review again.");
+      res.status(201).json(saved);
+    }),
+  );
   app.get(
     "/api/fees/:id/receipts/:payment",
     auth,

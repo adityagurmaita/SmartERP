@@ -2376,3 +2376,33 @@ select,
 .welcome-banner .banner-content {
   padding: 0 !important;
 }
+.demo-pay-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-bottom: 1px solid var(--border);
+}
+.demo-pay-row h3 {
+  margin: 0 0 8px;
+}
+.demo-payment-success {
+  padding: 16px;
+  background: #ecfdf5;
+  border: 1px solid #99dec2;
+  color: #176044;
+  border-radius: 10px;
+}
+.demo-checkout {
+  padding: 20px;
+}
+.demo-checkout button {
+  margin: 10px 10px 0 0;
+}
+@media (max-width: 550px) {
+  .demo-pay-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+}

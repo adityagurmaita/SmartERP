@@ -1531,6 +1531,8 @@ function Fees({ teacher, user }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);
+  const [checkout, setCheckout] = useState(null);
+  const [success, setSuccess] = useState(null);
   const money = (n) =>
     new Intl.NumberFormat("en-IN", {
       style: "currency",
@@ -1559,6 +1561,31 @@ function Fees({ teacher, user }) {
   const overdue = data.rows
     .filter((f) => state(f) === "Overdue")
     .reduce((n, f) => n + balance(f), 0);
+  async function simulateCheckout() {
+    setBusy(true);
+    setError("");
+    try {
+      const saved = await api(`/fees/${checkout._id}/demo-checkout`, {
+        method: "POST",
+        body: JSON.stringify({ expectedAmountPaise: balance(checkout) }),
+      });
+      const payment = saved.payments.at(-1);
+      setSuccess({
+        fee: saved._id,
+        payment: payment._id,
+        receipt: payment.receiptNumber,
+      });
+      await refresh();
+      setCheckout(null);
+      setSection("Fee receipts");
+    } catch (e) {
+      setError(e.message);
+      await refresh();
+      setCheckout(null);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
@@ -1619,7 +1646,12 @@ function Fees({ teacher, user }) {
     return (
       <section className="student-fee-module">
         <nav className="student-fee-menu" aria-label="Student fee sections">
-          {["Fee details", "Fee receipts", "Transaction history"].map((n) => (
+          {[
+            "Fee details",
+            "Pay demo fees",
+            "Fee receipts",
+            "Transaction history",
+          ].map((n) => (
             <button
               key={n}
               className={section === n ? "active" : ""}
@@ -1629,6 +1661,55 @@ function Fees({ teacher, user }) {
             </button>
           ))}
         </nav>
+        {error && (
+          <p role="alert" className="fee-error">
+            {error}
+          </p>
+        )}
+        {success && (
+          <p role="status" className="demo-payment-success">
+            Simulated checkout complete. No real money was charged. Receipt{" "}
+            {success.receipt} is in Fee receipts and Transaction history.
+          </p>
+        )}
+        {checkout && (
+          <Modal
+            title="Review simulated payment"
+            onClose={() => !busy && setCheckout(null)}
+          >
+            <div className="demo-checkout">
+              <p className="demo-warning">
+                FICTIONAL DEMO ONLY. No real payment, card or bank details. This
+                only updates your demo ledger.
+              </p>
+              <h3>{checkout.title}</h3>
+              <p>
+                {checkout.semester} · {user?.name}
+              </p>
+              <dl className="fee-summary">
+                <dt>Demo balance to settle</dt>
+                <dd>
+                  <strong>{money(balance(checkout))}</strong>
+                </dd>
+              </dl>
+              <p>No real fees are paid. Demo records reset on restart.</p>
+              <button
+                className="primary"
+                disabled={busy}
+                onClick={simulateCheckout}
+              >
+                {busy ? "Simulating..." : "Confirm simulated payment"}
+              </button>
+              <button
+                className="small-btn"
+                disabled={busy}
+                onClick={() => setCheckout(null)}
+              >
+                Cancel
+              </button>
+            </div>
+          </Modal>
+        )}
         <div className="student-fee-content">
           <div className="fee-filters">
             <label>
@@ -1665,7 +1746,43 @@ function Fees({ teacher, user }) {
               {error}
             </p>
           )}
-          {section === "Fee details" ? (
+          {section === "Pay demo fees" ? (
+            <section className="panel">
+              <div className="panel-title">
+                <h2>Pay demo fees</h2>
+              </div>
+              <p className="demo-warning">
+                Simulated checkout only. No real money, card details or payment
+                gateway.
+              </p>
+              {rows.map((f) => (
+                <article className="demo-pay-row" key={f._id}>
+                  <div>
+                    <h3>{f.title}</h3>
+                    <p>
+                      {f.semester} · Due {date(f.dueAt)}
+                    </p>
+                    <strong>{money(balance(f))}</strong>
+                    <p>{state(f)}</p>
+                  </div>
+                  <button
+                    className="primary"
+                    disabled={balance(f) === 0 || busy}
+                    onClick={() => {
+                      setCheckout(f);
+                      setError("");
+                      setSuccess(null);
+                    }}
+                  >
+                    {balance(f) === 0 ? "Paid (demo)" : "Simulate payment"}
+                  </button>
+                </article>
+              ))}
+              {!rows.length && (
+                <Empty>No fee records for this selection.</Empty>
+              )}
+            </section>
+          ) : section === "Fee details" ? (
             <div className="student-fee-columns">
               <section className="panel">
                 <div className="panel-title">
@@ -1758,8 +1875,9 @@ function Fees({ teacher, user }) {
                     </dd>
                   </dl>
                   <p className="muted">
-                    Payments are recorded by the accounts admin. Students cannot
-                    change balances.
+                    Use Pay demo fees to simulate settling your own balance. No
+                    real money is charged. Accounts admin can also record demo
+                    entries.
                   </p>
                   <button
                     className="small-btn"
