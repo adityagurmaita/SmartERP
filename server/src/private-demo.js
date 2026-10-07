@@ -10,6 +10,24 @@ export const tokenHash = (value) =>
 export async function privateWorkspace(uri, options = {}) {
   const connection = await mongoose.createConnection(uri).asPromise();
   const models = modelsForConnection(connection);
+  if (process.env.PRIVATE_STUDENT_PROFILE_JSON) {
+    const { accountEmail, rollNumber, ...profile } = JSON.parse(
+      process.env.PRIVATE_STUDENT_PROFILE_JSON,
+    );
+    if (
+      typeof accountEmail !== "string" ||
+      typeof rollNumber !== "string" ||
+      !Array.isArray(profile.rows) ||
+      !profile.photoDataUrl?.startsWith("data:image/jpeg;base64,")
+    )
+      throw Error("Invalid private profile configuration");
+    const changed = await models.User.updateOne(
+      { email: accountEmail.toLowerCase(), role: "student" },
+      { $set: { rollNumber, privateProfile: profile } },
+    );
+    if (changed.matchedCount !== 1)
+      throw Error("Private profile account not found");
+  }
   const Setup = connection.model(
     "PrivateSetup",
     new mongoose.Schema({

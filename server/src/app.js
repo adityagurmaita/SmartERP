@@ -101,6 +101,9 @@ export function createApp({
     role: u.role,
     rollNumber: u.rollNumber,
     privateWorkspace: realm === "private",
+    ...(realm === "private" && u.privateProfile
+      ? { profile: u.privateProfile }
+      : {}),
   });
   const loginResponse = (res, u) => {
     res.cookie(
@@ -114,7 +117,9 @@ export function createApp({
     try {
       const data = jwt.verify(req.cookies.session || "", jwtSecret);
       if (data.realm !== realm) throw Error();
-      req.user = await User.findById(data.sub);
+      req.user = await User.findById(data.sub).select(
+        realm === "private" ? "+privateProfile" : "",
+      );
       if (!req.user) throw Error();
     } catch {
       fail(401, "Please sign in");
@@ -208,7 +213,9 @@ export function createApp({
           password: z.string().min(1).max(128),
         })
         .parse(req.body);
-      const u = await User.findOne({ email: b.email }).select("+passwordHash");
+      const u = await User.findOne({ email: b.email }).select(
+        realm === "private" ? "+passwordHash +privateProfile" : "+passwordHash",
+      );
       if (!u || !(await bcrypt.compare(b.password, u.passwordHash)))
         fail(401, "Email or password is incorrect");
       loginResponse(res, u);
@@ -224,7 +231,7 @@ export function createApp({
     res.json({ ok: true });
   });
   app.get("/api/auth/me", auth, (req, res) =>
-    res.json({ user: publicUser(req.user) }),
+    res.set("Cache-Control", "no-store").json({ user: publicUser(req.user) }),
   );
   app.get(
     "/api/courses",

@@ -62,13 +62,54 @@ test("separate private realm, persistent setup claim, no demo roster access", as
         .countDocuments({ email: "private@example.invalid" }),
       0,
     );
+    await w.models.User.updateOne(
+      { email: "private@example.invalid" },
+      {
+        $set: {
+          privateProfile: {
+            displayName: "Private Test Student",
+            rows: [["Family", "PRIVATE_FIXTURE_ONLY"]],
+            photoDataUrl: "data:image/jpeg;base64,TEST",
+          },
+        },
+      },
+    );
+    const own = (await p.get("/api/auth/me").expect(200)).body.user;
+    assert.equal(own.profile.rows[0][1], "PRIVATE_FIXTURE_ONLY");
+    const fresh = request.agent(outer);
+    const logged = (
+      await fresh
+        .post("/api/auth/login")
+        .send({ email: "private@example.invalid", password: pass })
+        .expect(200)
+    ).body.user;
+    assert.equal(logged.profile.displayName, "Private Test Student");
+    assert(
+      !(await admin.get("/api/auth/me")).text.includes("PRIVATE_FIXTURE_ONLY"),
+    );
+    assert(
+      !(await admin.get("/api/fees")).text.includes("PRIVATE_FIXTURE_ONLY"),
+    );
+    process.env.PRIVATE_STUDENT_PROFILE_JSON = JSON.stringify({
+      accountEmail: "private@example.invalid",
+      rollNumber: "37",
+      displayName: "Private Test Student",
+      rows: [["Family", "PRIVATE_FIXTURE_ONLY"]],
+      photoDataUrl: "data:image/jpeg;base64,TEST",
+    });
     await w.connection.close();
     const w2 = await privateWorkspace(mongo.getUri("private"), options);
     try {
       assert.equal(await w2.Setup.countDocuments({ usedAt: { $ne: null } }), 1);
       assert(await w2.models.User.exists({ email: "private@example.invalid" }));
+      const updated = await w2.models.User.findOne({
+        email: "private@example.invalid",
+      }).select("+privateProfile");
+      assert.equal(updated.rollNumber, "37");
+      assert.equal(updated.privateProfile.rows[0][1], "PRIVATE_FIXTURE_ONLY");
     } finally {
       await w2.connection.close();
+      delete process.env.PRIVATE_STUDENT_PROFILE_JSON;
     }
   } finally {
     if (w.connection.readyState) await w.connection.close();

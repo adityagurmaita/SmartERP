@@ -13,6 +13,7 @@ export const User = model(
         required: true,
       },
       rollNumber: String,
+      privateProfile: { type: Schema.Types.Mixed, select: false },
     },
     { timestamps: true },
   ),

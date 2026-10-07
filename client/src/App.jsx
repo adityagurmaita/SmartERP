@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import {
+  Settings,
   UserRound,
   GraduationCap,
   LayoutDashboard,
@@ -110,6 +111,7 @@ function WorkspaceApp() {
     ),
     [dark, setDark] = useState(localStorage.getItem("theme") === "dark"),
     [menu, setMenu] = useState(false),
+    [moduleSearch, setModuleSearch] = useState(""),
     [showAlerts, setShowAlerts] = useState(false),
     [feeAlerts, setFeeAlerts] = useState([]),
     [feeAlertError, setFeeAlertError] = useState(""),
@@ -244,7 +246,7 @@ function WorkspaceApp() {
         <main className="admin-fees">
           <div className="demo-warning">
             {user.privateWorkspace
-              ? "Private fictional-data workspace. Only your login can access these records. Public demo admin review is unavailable. Uploaded files may reset; do not upload real documents."
+              ? "Private student workspace. Only your login can access these records. Academic activity and fees are demo records. Public demo admin review is unavailable. Uploaded files may reset; do not upload real documents."
               : "Fictional-data demo. Do not enter real student information. Demo changes may be reset."}
           </div>
           <nav className="section-menu" aria-label="Admin sections">
@@ -363,7 +365,9 @@ function WorkspaceApp() {
     );
   }
   return (
-    <div className="app">
+    <div
+      className={"app " + (user.privateWorkspace ? "private-college-app" : "")}
+    >
       <aside className={"sidebar " + (menu ? "open" : "")}>
         <a className="brand" href="#" onClick={() => go("Dashboard")}>
           <span className="brand-icon">
@@ -502,30 +506,11 @@ function WorkspaceApp() {
         <main className="content">
           <div className="demo-banner">
             {user.privateWorkspace
-              ? "Private fictional-data workspace. Only your login can access these records. Public demo admin review is unavailable. Uploaded files may reset; do not upload real documents."
+              ? "Private student workspace. Only your login can access these records. Academic activity and fees are demo records. Public demo admin review is unavailable. Uploaded files may reset; do not upload real documents."
               : "Fictional-data demo. Do not enter real student information. Demo changes may be reset."}
           </div>
           {user.privateWorkspace && tab === "Dashboard" && (
-            <section className="private-dashboard-identity">
-              <div className="erp-profile-avatar">
-                {user.name
-                  .split(" ")
-                  .map((n) => n[0])
-                  .slice(0, 2)
-                  .join("")}
-              </div>
-              <div>
-                <small>MY PRIVATE STUDENT WORKSPACE</small>
-                <h2>{user.name}</h2>
-                <p>
-                  Roll {user.rollNumber || "Not provided"} · {courses.length}{" "}
-                  demo courses
-                </p>
-              </div>
-              <button className="small-btn" onClick={() => go("Profile")}>
-                View my profile <ChevronRight size={15} />
-              </button>
-            </section>
+            <PrivateStudentHeader user={user} onProfile={() => go("Profile")} />
           )}
           <div className="erp-profile">
             <div className="erp-profile-avatar">
@@ -554,38 +539,78 @@ function WorkspaceApp() {
               <b>{user.email}</b>
             </div>
           </div>
-          <div
-            className={
-              "erp-modules " +
-              (user.privateWorkspace ? "private-module-menu" : "")
-            }
-          >
-            {navigation
-              .filter(
+          {user.privateWorkspace && tab === "Dashboard" ? (
+            <section className="college-module-launcher">
+              <label>
+                <input
+                  type="search"
+                  aria-label="Search Modules"
+                  placeholder="Search Modules..."
+                  value={moduleSearch}
+                  onChange={(e) => setModuleSearch(e.target.value)}
+                />
+              </label>
+              <div className="college-module-grid">
+                {navigation
+                  .filter(
+                    ([n]) =>
+                      !["Dashboard", "Profile"].includes(n) &&
+                      n.toLowerCase().includes(moduleSearch.toLowerCase()),
+                  )
+                  .map(([n, Icon]) => (
+                    <button key={n} onClick={() => go(n)}>
+                      <Icon size={32} />
+                      <span>
+                        {{
+                          Courses: "Academic",
+                          Fees: "Fee",
+                          Notices: "Circular",
+                          Exams: "Exam",
+                          Clubs: "Club/Committee",
+                          Hostel: "Hostel",
+                          Grievances: "Grievance",
+                        }[n] || n}
+                      </span>
+                    </button>
+                  ))}
+              </div>
+              {!navigation.some(
                 ([n]) =>
-                  (n !== "Profile" || user.privateWorkspace) &&
-                  (!teacher ||
-                    ![
-                      "Attendance",
-                      "Assistant",
-                      "Fees",
-                      "Applications",
-                      "Hostel",
-                      "Grievances",
-                      "Clubs",
-                    ].includes(n)),
-              )
-              .map(([name, Icon]) => (
-                <button
-                  key={name}
-                  className={tab === name ? "selected" : ""}
-                  onClick={() => go(name)}
-                >
-                  <Icon size={25} />
-                  <span>{name}</span>
-                </button>
-              ))}
-          </div>
+                  !["Dashboard", "Profile"].includes(n) &&
+                  n.toLowerCase().includes(moduleSearch.toLowerCase()),
+              ) && <p>No modules match. Try a different name.</p>}
+            </section>
+          ) : (
+            !user.privateWorkspace && (
+              <div className="erp-modules">
+                {navigation
+                  .filter(
+                    ([n]) =>
+                      n !== "Profile" &&
+                      (!teacher ||
+                        ![
+                          "Attendance",
+                          "Assistant",
+                          "Fees",
+                          "Applications",
+                          "Hostel",
+                          "Grievances",
+                          "Clubs",
+                        ].includes(n)),
+                  )
+                  .map(([name, Icon]) => (
+                    <button
+                      key={name}
+                      className={tab === name ? "selected" : ""}
+                      onClick={() => go(name)}
+                    >
+                      <Icon size={25} />
+                      <span>{name}</span>
+                    </button>
+                  ))}
+              </div>
+            )
+          )}
           {error && (
             <div role="alert" className="error">
               {error}
@@ -622,6 +647,25 @@ function WorkspaceApp() {
               })}
             </span>
           </div>
+          {user.privateWorkspace && (
+            <nav className="college-bottom-nav" aria-label="Student navigation">
+              {[
+                ["Dashboard", LayoutDashboard, "Home"],
+                ["Attendance", CalendarCheck, "Attendance"],
+                ["Assignments", ClipboardList, "Assignment"],
+                ["Profile", Settings, "Settings"],
+              ].map(([n, Icon, label]) => (
+                <button
+                  key={n}
+                  className={tab === n ? "active" : ""}
+                  onClick={() => go(n)}
+                >
+                  <Icon size={23} />
+                  <span>{label}</span>
+                </button>
+              ))}
+            </nav>
+          )}
           {tab !== "Dashboard" && (
             <div className="module-heading">
               <button className="small-btn" onClick={() => go("Dashboard")}>
@@ -1592,8 +1636,54 @@ function AttendanceCalculator() {
     </div>
   );
 }
+function PrivateStudentHeader({ user, onProfile }) {
+  const p = user.profile;
+  return (
+    <section className="college-profile-header">
+      {p?.photoDataUrl ? (
+        <img src={p.photoDataUrl} alt="Student profile photo" />
+      ) : (
+        <div className="college-initial-avatar">
+          {user.name
+            .split(" ")
+            .map((n) => n[0])
+            .slice(0, 2)
+            .join("")}
+        </div>
+      )}
+      <h2>{p?.displayName || user.name}</h2>
+      {p?.hindiName && <h3>{p.hindiName}</h3>}
+      {p?.headerEnrollment && <strong>{p.headerEnrollment}</strong>}
+      <p>{p?.contactEmail || user.email}</p>
+      {p?.phone && <p>{p.phone}</p>}
+      {onProfile && (
+        <button onClick={onProfile}>
+          View my profile <ChevronRight size={15} />
+        </button>
+      )}
+    </section>
+  );
+}
 function StudentProfile({ user, courses, results, attendance }) {
   const [section, setSection] = useState("Personal details");
+  if (user.profile)
+    return (
+      <div className="student-profile-page">
+        <PrivateStudentHeader user={user} />
+        <dl className="college-profile-rows">
+          {user.profile.rows.map(([label, value]) => (
+            <div key={label}>
+              <dt>{label} :</dt>
+              <dd>{value || ""}</dd>
+            </div>
+          ))}
+        </dl>
+        <p className="muted">
+          Profile details from your supplied college screenshot. Attendance,
+          grades and fees in this workspace remain fictional demo records.
+        </p>
+      </div>
+    );
   const details = {
     "Personal details": [
       ["Full name", user.name],
