@@ -1920,6 +1920,99 @@ select,
     padding: 12px;
   }
 }
-.admin-workspace { color:var(--text); min-height:100vh; background:var(--bg); }
-.admin-workspace .topbar { color:var(--text); }
-.admin-workspace .small-btn { color:var(--text); }
+.admin-workspace {
+  color: var(--text);
+  min-height: 100vh;
+  background: var(--bg);
+}
+.admin-workspace .topbar {
+  color: var(--text);
+}
+.admin-workspace .small-btn {
+  color: var(--text);
+}
+.student-fee-module {
+  display: grid;
+  grid-template-columns: 165px minmax(0, 1fr);
+  gap: 16px;
+}
+.student-fee-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.student-fee-menu button {
+  padding: 14px 12px;
+  text-align: left;
+  background: var(--soft);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.student-fee-menu button.active {
+  background: linear-gradient(#03a9f4, #2980b9);
+  color: white;
+}
+.student-fee-content {
+  min-width: 0;
+}
+.fee-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+.fee-filters label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.fee-filters select {
+  max-width: 200px;
+  padding: 9px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--line);
+}
+.student-fee-columns {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(220px, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+.student-fee-columns aside {
+  display: grid;
+  gap: 16px;
+}
+.student-fee-info {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  font-size: 13px;
+}
+.student-fee-info dt {
+  color: var(--muted);
+}
+.student-fee-info dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.student-fee-module .panel {
+  min-width: 0;
+}
+.student-fee-module table {
+  min-width: 650px;
+}
+@media (max-width: 1000px) {
+  .student-fee-module {
+    grid-template-columns: 1fr;
+  }
+  .student-fee-menu {
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+  .student-fee-columns {
+    grid-template-columns: 1fr;
+  }
+}
+.fee-filters label { white-space:nowrap; }
+.student-fee-info { grid-template-columns:minmax(85px,1fr) minmax(0,1.3fr); }
+@media(min-width:1200px) { .student-fee-module {grid-template-columns:140px minmax(0,1fr);} .student-fee-columns {grid-template-columns:minmax(0,1.9fr) minmax(220px,1fr);} }

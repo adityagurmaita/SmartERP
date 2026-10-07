@@ -713,7 +713,7 @@ export default function App() {
               </div>
             </>
           )}
-          {tab === "Fees" && <Fees teacher={teacher} />}
+          {tab === "Fees" && <Fees teacher={teacher} user={user} />}
           {tab === "Results" && (
             <section className="panel">
               <div className="panel-title">
@@ -1474,8 +1474,11 @@ function Auth({ onLogin, dark, setDark }) {
   );
 }
 
-function Fees({ teacher }) {
+function Fees({ teacher, user }) {
   const [data, setData] = useState({ rows: [], students: [] });
+  const [section, setSection] = useState("Fee details");
+  const [semester, setSemester] = useState("All semesters");
+  const [feeType, setFeeType] = useState("All fee heads");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [form, setForm] = useState(null);
@@ -1541,6 +1544,227 @@ function Fees({ teacher }) {
     } finally {
       setBusy(false);
     }
+  }
+  if (!teacher) {
+    const rows = data.rows.filter(
+      (f) =>
+        (semester === "All semesters" || f.semester === semester) &&
+        (feeType === "All fee heads" || f.title === feeType),
+    );
+    const transactions = rows
+      .flatMap((f) => f.payments.map((p) => ({ ...p, fee: f })))
+      .sort((a, b) => new Date(b.paidAt) - new Date(a.paidAt));
+    const sum = rows.reduce((n, f) => n + f.amountPaise, 0),
+      recorded = rows.reduce((n, f) => n + paid(f), 0);
+    return (
+      <section className="student-fee-module">
+        <nav className="student-fee-menu" aria-label="Student fee sections">
+          {["Fee details", "Fee receipts", "Transaction history"].map((n) => (
+            <button
+              key={n}
+              className={section === n ? "active" : ""}
+              onClick={() => setSection(n)}
+            >
+              {n}
+            </button>
+          ))}
+        </nav>
+        <div className="student-fee-content">
+          <div className="fee-filters">
+            <label>
+              Fee type
+              <select
+                value={feeType}
+                onChange={(e) => setFeeType(e.target.value)}
+              >
+                <option>All fee heads</option>
+                {[...new Set(data.rows.map((f) => f.title))].map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Duration
+              <select
+                value={semester}
+                onChange={(e) => setSemester(e.target.value)}
+              >
+                <option>All semesters</option>
+                {[...new Set(data.rows.map((f) => f.semester))].map((t) => (
+                  <option key={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <p className="muted">
+            Fictional student fee view. No real payment gateway or university
+            receipt. Amounts shown are demo ledger entries.
+          </p>
+          {error && (
+            <p role="alert" className="fee-error">
+              {error}
+            </p>
+          )}
+          {section === "Fee details" ? (
+            <div className="student-fee-columns">
+              <section className="panel">
+                <div className="panel-title">
+                  <h2>Academic fee detail (INR)</h2>
+                </div>
+                <div className="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Sem/Year</th>
+                        <th>Fee head</th>
+                        <th>Current dues</th>
+                        <th>Scholarship / Discount</th>
+                        <th>Recorded paid</th>
+                        <th>Balance</th>
+                        <th>Due date</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map((f) => (
+                        <tr key={f._id}>
+                          <td>{f.semester}</td>
+                          <td>{f.title}</td>
+                          <td>{money(f.amountPaise)}</td>
+                          <td>Not recorded</td>
+                          <td>{money(paid(f))}</td>
+                          <td>{money(balance(f))}</td>
+                          <td>{date(f.dueAt)}</td>
+                          <td>
+                            <Badge tone={state(f) === "Paid" ? "green" : ""}>
+                              {state(f)}
+                            </Badge>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {!rows.length && (
+                  <Empty>No fee records for this selection.</Empty>
+                )}
+                <p className="muted">
+                  Swipe the table to see all columns on your phone.
+                  Scholarship/fine rules are not configured in this demo.
+                </p>
+              </section>
+              <aside>
+                <section className="panel">
+                  <div className="panel-title">
+                    <h2>Student details</h2>
+                  </div>
+                  <dl className="student-fee-info">
+                    <dt>Student name</dt>
+                    <dd>{user?.name}</dd>
+                    <dt>Roll number</dt>
+                    <dd>{user?.rollNumber || "--"}</dd>
+                    <dt>Student email</dt>
+                    <dd>{user?.email}</dd>
+                    <dt>Duration</dt>
+                    <dd>{semester}</dd>
+                  </dl>
+                </section>
+                <section className="panel">
+                  <div className="panel-title">
+                    <h2>Fee details</h2>
+                  </div>
+                  <dl className="student-fee-info">
+                    <dt>Total dues</dt>
+                    <dd>{money(sum)}</dd>
+                    <dt>Recorded paid</dt>
+                    <dd>{money(recorded)}</dd>
+                    <dt>Balance amount</dt>
+                    <dd>
+                      <strong>{money(sum - recorded)}</strong>
+                    </dd>
+                    <dt>Overdue balance</dt>
+                    <dd>
+                      {money(
+                        rows
+                          .filter((f) => state(f) === "Overdue")
+                          .reduce((n, f) => n + balance(f), 0),
+                      )}
+                    </dd>
+                    <dt>Next pending due</dt>
+                    <dd>
+                      {rows.find((f) => balance(f) > 0)
+                        ? date(rows.find((f) => balance(f) > 0).dueAt)
+                        : "None"}
+                    </dd>
+                  </dl>
+                  <p className="muted">
+                    Payments are recorded by the accounts admin. Students cannot
+                    change balances.
+                  </p>
+                  <button
+                    className="small-btn"
+                    onClick={() => setSection("Fee receipts")}
+                  >
+                    View my demo receipts
+                  </button>
+                </section>
+              </aside>
+            </div>
+          ) : (
+            <section className="panel">
+              <div className="panel-title">
+                <h2>
+                  {section === "Fee receipts"
+                    ? "Fee receipt details"
+                    : "Recorded transaction history"}
+                </h2>
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Receipt no.</th>
+                      <th>Receipt date</th>
+                      <th>Fee head</th>
+                      <th>Amount</th>
+                      <th>Remarks / Reference</th>
+                      <th>Demo receipt</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {transactions.map((p) => (
+                      <tr key={p._id}>
+                        <td>{p.receiptNumber}</td>
+                        <td>{date(p.paidAt)}</td>
+                        <td>{p.fee.title}</td>
+                        <td>{money(p.amountPaise)}</td>
+                        <td>{p.reference}</td>
+                        <td>
+                          <a
+                            className="small-btn"
+                            href={`/api/fees/${p.fee._id}/receipts/${p._id}`}
+                            download
+                          >
+                            Download demo TXT
+                          </a>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              {!transactions.length && (
+                <Empty>No recorded payments for this selection.</Empty>
+              )}
+              <p className="muted">
+                Every download is marked fictional. It is not proof of a real
+                university payment.
+              </p>
+            </section>
+          )}
+        </div>
+      </section>
+    );
   }
   return (
     <>
