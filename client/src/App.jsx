@@ -1642,6 +1642,44 @@ function Fees({ teacher, user }) {
       setBusy(false);
     }
   }
+  async function savePlan(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError("");
+    const fd = new FormData(e.currentTarget);
+    try {
+      const b = {
+        baseAmountPaise: Math.round(Number(fd.get("base")) * 100),
+        finePaise: Math.round(Number(fd.get("fine")) * 100),
+        scholarshipPaise: Math.round(Number(fd.get("scholarship")) * 100),
+        adjustmentNote: fd.get("note"),
+        installments: [],
+      };
+      for (let i = 1; i <= 3; i++) {
+        const amount = fd.get("part" + i),
+          due = fd.get("due" + i);
+        if (amount || due) {
+          if (!amount || !due)
+            throw Error("Each installment needs amount and due date");
+          b.installments.push({
+            label: "Installment " + i,
+            amountPaise: Math.round(Number(amount) * 100),
+            dueAt: new Date(due + "T23:59:59+05:30").toISOString(),
+          });
+        }
+      }
+      await api("/fees/" + form.fee._id + "/plan", {
+        method: "PATCH",
+        body: JSON.stringify(b),
+      });
+      await refresh();
+      setForm(null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(false);
+    }
+  }
   async function submit(e) {
     e.preventDefault();
     setBusy(true);
@@ -1802,6 +1840,16 @@ function Fees({ teacher, user }) {
               {error}
             </p>
           )}
+          {data.rows.some((f) => f.baseAmountPaise) && (
+            <section className="panel request-workspace">
+              <h2>Configured demo fee plans</h2>
+              {rows
+                .filter((f) => f.baseAmountPaise)
+                .map((f) => (
+                  <FeePlan key={f._id} fee={f} money={money} />
+                ))}
+            </section>
+          )}
           {section === "Pay demo fees" ? (
             <section className="panel">
               <div className="panel-title">
@@ -1864,7 +1912,11 @@ function Fees({ teacher, user }) {
                           <td>{f.semester}</td>
                           <td>{f.title}</td>
                           <td>{money(f.amountPaise)}</td>
-                          <td>Not recorded</td>
+                          <td>
+                            {f.baseAmountPaise
+                              ? money(f.scholarshipPaise || 0)
+                              : "Not recorded"}
+                          </td>
                           <td>{money(paid(f))}</td>
                           <td>{money(balance(f))}</td>
                           <td>{date(f.dueAt)}</td>
@@ -1882,8 +1934,9 @@ function Fees({ teacher, user }) {
                   <Empty>No fee records for this selection.</Empty>
                 )}
                 <p className="muted">
-                  Swipe the table to see all columns on your phone.
-                  Scholarship/fine rules are not configured in this demo.
+                  Swipe the table to see all columns on your phone. Adjustments
+                  appear only when configured by the demo admin; no automatic
+                  university rule is assumed.
                 </p>
               </section>
               <aside>
@@ -2088,8 +2141,18 @@ function Fees({ teacher, user }) {
                   </dd>
                 </div>
               </dl>
+              {f.baseAmountPaise && <FeePlan fee={f} money={money} />}
               {teacher && (
                 <div className="fee-actions">
+                  <button
+                    className="small-btn"
+                    onClick={() => {
+                      setError("");
+                      setForm({ type: "plan", fee: f });
+                    }}
+                  >
+                    Configure demo plan
+                  </button>
                   <button
                     className="small-btn"
                     onClick={() => {
@@ -2139,7 +2202,96 @@ function Fees({ teacher, user }) {
           ))}
         </div>
       </section>
-      {form && (
+      {form?.type === "plan" && (
+        <Modal
+          title="Configure demo fee plan"
+          onClose={() => !busy && setForm(null)}
+        >
+          <form className="request-form" onSubmit={savePlan}>
+            <p>
+              Fictional amounts only. Net fee = base + fine - scholarship. Plans
+              must total the net fee, never less than recorded payments.
+            </p>
+            {error && <p role="alert">{error}</p>}
+            <label>
+              Base fee (INR)
+              <input
+                required
+                name="base"
+                type="number"
+                step="0.01"
+                min="0.01"
+                defaultValue={
+                  (form.fee.baseAmountPaise || form.fee.amountPaise) / 100
+                }
+              />
+            </label>
+            <label>
+              Demo fine (INR)
+              <input
+                required
+                name="fine"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={(form.fee.finePaise || 0) / 100}
+              />
+            </label>
+            <label>
+              Demo scholarship (INR)
+              <input
+                required
+                name="scholarship"
+                type="number"
+                step="0.01"
+                min="0"
+                defaultValue={(form.fee.scholarshipPaise || 0) / 100}
+              />
+            </label>
+            <label>
+              Adjustment reason
+              <input
+                required
+                name="note"
+                minLength={3}
+                maxLength={300}
+                defaultValue={form.fee.adjustmentNote}
+              />
+            </label>
+            <h3>Optional installment schedule</h3>
+            {[1, 2, 3].map((i) => (
+              <div key={i}>
+                <label>
+                  {"Installment " + i + " amount (INR)"}
+                  <input
+                    name={"part" + i}
+                    type="number"
+                    step="0.01"
+                    min="0.01"
+                    defaultValue={
+                      form.fee.installments?.[i - 1]?.amountPaise / 100 || ""
+                    }
+                  />
+                </label>
+                <label>
+                  {"Installment " + i + " due date"}
+                  <input
+                    name={"due" + i}
+                    type="date"
+                    defaultValue={
+                      form.fee.installments?.[i - 1]?.dueAt?.slice(0, 10) || ""
+                    }
+                  />
+                </label>
+              </div>
+            ))}
+            <button className="primary" disabled={busy}>
+              Save demo fee plan
+            </button>
+          </form>
+        </Modal>
+      )}
+      {form && form.type !== "plan" && (
         <Modal
           title={
             form.type === "payment"
@@ -3099,5 +3251,35 @@ function CampusExtras({ type, user }) {
         </>
       )}
     </section>
+  );
+}
+
+function FeePlan({ fee, money }) {
+  let recorded = fee.payments.reduce((n, p) => n + p.amountPaise, 0);
+  return (
+    <article className="request-card">
+      <h3>{fee.title} - demo plan</h3>
+      <p>
+        Base {money(fee.baseAmountPaise)} + fine {money(fee.finePaise || 0)} -
+        scholarship {money(fee.scholarshipPaise || 0)} = net{" "}
+        {money(fee.amountPaise)}
+      </p>
+      <p>{fee.adjustmentNote}</p>
+      {fee.installments?.map((i) => {
+        const allocated = Math.min(recorded, i.amountPaise);
+        recorded -= allocated;
+        return (
+          <p key={i._id}>
+            {i.label} · Due {date(i.dueAt)} · {money(i.amountPaise)} · Remaining{" "}
+            {money(i.amountPaise - allocated)}
+          </p>
+        );
+      })}
+      <small>
+        Demo entries allocated to installments in due-date order. No automatic
+        fines or scholarship eligibility. Student checkout still settles the
+        full outstanding fee; admin can record partial demo entries.
+      </small>
+    </article>
   );
 }

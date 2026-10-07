@@ -133,3 +133,7 @@ Applications supports Certificate, Document copy, ID card and Degree requests. H
 ### Fictional campus expansion, batch 2
 
 Exam requests supports Back paper and Makeup exam applications with admin approval. Approved students can download a clearly marked fictional admit-card TXT, never valid for an exam and without invented eligibility/date/seat. Resources contains searchable example practice papers and syllabus TXT by course/session; these are authored demo samples, not real past university papers. Clubs supports join/leave; achievements are explicitly self-reported and unverified. No real college membership, exam application or document is created.
+
+### Configured demo fee plans, batch 3
+
+Accounts admins can configure a base fee, manual fine, manual scholarship and optional installment schedule. Net = base + fine - scholarship. Schedule amounts must total the net, and the net cannot fall below recorded payments. Students see the configured adjustments and installment balances allocated by due-date order. There are no automatic fine rules or scholarship eligibility checks; student simulated checkout still settles the full outstanding fee, while admins may record partial fictional entries. No payment gateway, real charge, card collection or official receipt is involved.

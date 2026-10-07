@@ -644,9 +644,60 @@ export function createApp({
       const paid = fee.payments.reduce((sum, p) => sum + p.amountPaise, 0);
       if (body.amountPaise < paid)
         fail(400, "Fee total cannot be below recorded payments");
+      if (fee.installments?.length || fee.baseAmountPaise)
+        fail(
+          400,
+          "Use Configure demo plan to change a fee with adjustments or installments",
+        );
       Object.assign(fee, body);
       await fee.save();
       res.json(fee);
+    }),
+  );
+  app.patch(
+    "/api/fees/:id/plan",
+    auth,
+    admin,
+    wrap(async (req, res) => {
+      const f = await feeAccess(req, req.params.id);
+      const b = z
+        .object({
+          baseAmountPaise: z.number().int().positive().max(100000000),
+          finePaise: z.number().int().min(0).max(100000000),
+          scholarshipPaise: z.number().int().min(0).max(100000000),
+          adjustmentNote: z.string().trim().min(3).max(300),
+          installments: z
+            .array(
+              z.object({
+                label: z.string().trim().min(1).max(80),
+                amountPaise: z.number().int().positive().max(100000000),
+                dueAt: z.string().datetime(),
+              }),
+            )
+            .max(6),
+        })
+        .strict()
+        .parse(req.body);
+      if (b.scholarshipPaise > b.baseAmountPaise)
+        fail(400, "Scholarship cannot exceed base fee");
+      const net = b.baseAmountPaise + b.finePaise - b.scholarshipPaise;
+      if (net <= 0 || net > 100000000) fail(400, "Invalid net fee");
+      if (
+        b.installments.length &&
+        b.installments.reduce((s, i) => s + i.amountPaise, 0) !== net
+      )
+        fail(400, "Installments must add up to the net fee");
+      b.installments.sort((a, c) => new Date(a.dueAt) - new Date(c.dueAt));
+      const saved = await Fee.findOneAndUpdate(
+        {
+          _id: f._id,
+          $expr: { $lte: [{ $sum: "$payments.amountPaise" }, net] },
+        },
+        { $set: { ...b, amountPaise: net } },
+        { returnDocument: "after" },
+      );
+      if (!saved) fail(400, "Net fee cannot be below recorded payments");
+      res.json(saved);
     }),
   );
   app.post(

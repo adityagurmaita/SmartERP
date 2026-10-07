@@ -98,6 +98,11 @@ export const Fee = model(
       semester: { type: String, required: true },
       amountPaise: { type: Number, required: true, min: 1 },
       dueAt: { type: Date, required: true },
+      baseAmountPaise: Number,
+      finePaise: { type: Number, default: 0, min: 0 },
+      scholarshipPaise: { type: Number, default: 0, min: 0 },
+      adjustmentNote: String,
+      installments: [{ label: String, amountPaise: Number, dueAt: Date }],
       createdBy: { type: Schema.Types.ObjectId, ref: "User" },
       payments: [
         {
