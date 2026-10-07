@@ -3281,3 +3281,42 @@ html[data-theme="dark"] .attendance-warning {
 [data-theme="dark"] .subject-plan.recover {
   color: #f8bf9c;
 }
+[data-theme="dark"] .attendance-subject.ocean {
+  --subject: #75b7ff;
+}
+[data-theme="dark"] .attendance-subject.sunset {
+  --subject: #ffb282;
+}
+[data-theme="dark"] .attendance-subject.violet {
+  --subject: #bdabff;
+}
+[data-theme="dark"] .attendance-subject.mint {
+  --subject: #77dac3;
+}
+@media (max-width: 360px) {
+  .private-college-app .top-actions {
+    gap: 6px;
+  }
+  .private-college-app .topbar {
+    padding-left: 12px;
+    padding-right: 12px;
+    gap: 8px;
+  }
+  .private-college-app .breadcrumb {
+    font-size: 10px;
+    gap: 7px;
+  }
+  .attendance-hero {
+    padding: 18px;
+  }
+  .attendance-hero h2 {
+    font-size: 19px;
+  }
+  .attendance-hero-body {
+    gap: 14px;
+  }
+  .attendance-ring {
+    flex-basis: 104px;
+    height: 104px;
+  }
+}
