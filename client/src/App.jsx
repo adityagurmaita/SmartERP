@@ -98,6 +98,9 @@ function Modal({ title, onClose, children }) {
   );
 }
 export default function App() {
+  return location.pathname === "/Setup" ? <SetupPassword /> : <WorkspaceApp />;
+}
+function WorkspaceApp() {
   const [user, setUser] = useState(null),
     [loading, setLoading] = useState(true),
     [tab, setTab] = useState(
@@ -1394,6 +1397,97 @@ function AttendanceCalculator() {
               : `You can miss ${miss} more classes and stay at or above 75%.`}
       </div>
     </div>
+  );
+}
+function SetupPassword() {
+  const [error, setError] = useState(""),
+    [done, setDone] = useState(false),
+    [busy, setBusy] = useState(false);
+  const token = new URLSearchParams(location.hash.slice(1)).get("token");
+  useEffect(() => {
+    document.querySelector('meta[name="referrer"]')?.remove();
+    const m = document.createElement("meta");
+    m.name = "referrer";
+    m.content = "no-referrer";
+    document.head.append(m);
+  }, []);
+  return (
+    <main className="private-setup-page">
+      <section className="private-setup-card">
+        <h1>Set your private demo password</h1>
+        <p>
+          Only your account can see its own fictional records. Never enter real
+          student documents or financial details.
+        </p>
+        {done ? (
+          <>
+            <p role="status">
+              Password set. Your setup link is now used. Sign in with your own
+              email.
+            </p>
+            <a href="/">Go to sign in</a>
+          </>
+        ) : (
+          <form
+            className="request-form"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setBusy(true);
+              setError("");
+              const f = new FormData(e.currentTarget);
+              if (f.get("password") !== f.get("confirm")) {
+                setError("Passwords do not match");
+                setBusy(false);
+                return;
+              }
+              try {
+                await api("/auth/setup", {
+                  method: "POST",
+                  body: JSON.stringify({ token, password: f.get("password") }),
+                });
+                history.replaceState({}, "", "/Setup");
+                setDone(true);
+              } catch (e) {
+                setError(e.message);
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <p>
+              This private link expires after 24 hours and works once. Use a new
+              password you do not use elsewhere.
+            </p>
+            <label>
+              New password
+              <input
+                name="password"
+                type="password"
+                minLength={12}
+                maxLength={128}
+                required
+                autoComplete="new-password"
+              />
+            </label>
+            <label>
+              Confirm password
+              <input
+                name="confirm"
+                type="password"
+                minLength={12}
+                maxLength={128}
+                required
+                autoComplete="new-password"
+              />
+            </label>
+            {error && <p role="alert">{error}</p>}
+            <button className="primary" disabled={busy || !token}>
+              {busy ? "Saving..." : "Set password"}
+            </button>
+          </form>
+        )}
+      </section>
+    </main>
   );
 }
 function Auth({ onLogin, dark, setDark }) {

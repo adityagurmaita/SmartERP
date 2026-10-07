@@ -1,22 +1,23 @@
 import "dotenv/config";
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";
-import {
-  User,
-  Course,
-  Assignment,
-  Attendance,
-  Result,
-  Notice,
-  Fee,
-  ClassSession,
-  Exam,
-  Book,
-  Loan,
-  LearningResource,
-  Club,
-} from "./models.js";
-export async function seed() {
+import * as defaultModels from "./models.js";
+export async function seed(models = defaultModels) {
+  const {
+    User,
+    Course,
+    Assignment,
+    Attendance,
+    Result,
+    Notice,
+    Fee,
+    ClassSession,
+    Exam,
+    Book,
+    Loan,
+    LearningResource,
+    Club,
+  } = models;
   if (await User.exists({ email: "student@smarterp.demo" })) return;
   const passwordHash = await bcrypt.hash("SmartERPdemo123!", 12);
   const student = await User.create({

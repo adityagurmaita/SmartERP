@@ -240,3 +240,15 @@ export const Achievement = model(
     { timestamps: true },
   ),
 );
+
+// Separate connection, identical schemas; no cross-tenant records.
+export function modelsForConnection(connection) {
+  return Object.fromEntries(
+    mongoose
+      .modelNames()
+      .map((name) => [
+        name,
+        connection.model(name, mongoose.model(name).schema),
+      ]),
+  );
+}

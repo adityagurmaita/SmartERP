@@ -137,3 +137,7 @@ Exam requests supports Back paper and Makeup exam applications with admin approv
 ### Configured demo fee plans, batch 3
 
 Accounts admins can configure a base fee, manual fine, manual scholarship and optional installment schedule. Net = base + fine - scholarship. Schedule amounts must total the net, and the net cannot fall below recorded payments. Students see the configured adjustments and installment balances allocated by due-date order. There are no automatic fine rules or scholarship eligibility checks; student simulated checkout still settles the full outstanding fee, while admins may record partial fictional entries. No payment gateway, real charge, card collection or official receipt is involved.
+
+### Optional isolated private demo workspace
+
+Set PRIVATE_MONGODB_URI only in the host's private environment to use a separate persistent Mongo database for a provisioned private student. The shared fictional demo still resets. Realm-bound sessions and separate models keep the public demo teacher/admin out of the private database. Provisioning is server-side only; public registration stays disabled. A random 24-hour single-use setup link stores only a token hash; the student sets their password directly, saved bcrypt-hashed. Do not put personal account details, setup tokens or database credentials in source. This is still a fictional-record demo, not an audited production ERP. Private in-app review by the public demo admin is intentionally unavailable. Upload storage remains ephemeral; do not upload real documents.

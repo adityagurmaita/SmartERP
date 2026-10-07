@@ -10,25 +10,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
-import {
-  User,
-  Course,
-  Assignment,
-  Submission,
-  Attendance,
-  Result,
-  Notice,
-  Fee,
-  ClassSession,
-  Exam,
-  Book,
-  Loan,
-  CampusRequest,
-  LearningResource,
-  Club,
-  ClubMember,
-  Achievement,
-} from "./models.js";
+import * as defaultModels from "./models.js";
 import { attendanceAdvice, cgpa } from "./math.js";
 export function createApp({
   jwtSecret,
@@ -37,7 +19,28 @@ export function createApp({
   uploadDir = path.resolve("uploads"),
   production = false,
   demoPublic = false,
+  models = defaultModels,
+  realm = "demo",
 }) {
+  const {
+    User,
+    Course,
+    Assignment,
+    Submission,
+    Attendance,
+    Result,
+    Notice,
+    Fee,
+    ClassSession,
+    Exam,
+    Book,
+    Loan,
+    CampusRequest,
+    LearningResource,
+    Club,
+    ClubMember,
+    Achievement,
+  } = models;
   if (!jwtSecret || jwtSecret.length < 32)
     throw new Error("JWT_SECRET must be at least 32 characters");
   const app = express();
@@ -101,7 +104,7 @@ export function createApp({
   const loginResponse = (res, u) => {
     res.cookie(
       "session",
-      jwt.sign({ sub: u.id }, jwtSecret, { expiresIn: "8h" }),
+      jwt.sign({ sub: u.id, realm }, jwtSecret, { expiresIn: "8h" }),
       cookie,
     );
     res.json({ user: publicUser(u) });
@@ -109,6 +112,7 @@ export function createApp({
   const auth = wrap(async (req, res, next) => {
     try {
       const data = jwt.verify(req.cookies.session || "", jwtSecret);
+      if (data.realm !== realm) throw Error();
       req.user = await User.findById(data.sub);
       if (!req.user) throw Error();
     } catch {

@@ -1,6 +1,10 @@
 // Fictional-data demo with a disposable MongoDB instance. Not for real records.
 import mongoose from "mongoose";
 import express from "express";
+import cookieParser from "cookie-parser";
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+import { privateWorkspace, installPrivateRouting } from "./private-demo.js";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
@@ -11,7 +15,7 @@ const production = process.env.NODE_ENV === "production";
 const mongo = await MongoMemoryServer.create();
 await mongoose.connect(mongo.getUri());
 await seed();
-const app = createApp({
+const options = {
   jwtSecret: randomBytes(48).toString("hex"),
   teacherCode: production ? undefined : "DEMO-FACULTY-2026",
   clientOrigin:
@@ -20,7 +24,34 @@ const app = createApp({
     "http://localhost:5173",
   production,
   demoPublic: production,
+};
+const app = express();
+if (production) app.set("trust proxy", 1);
+app.use(helmet(), express.json({ limit: "100kb" }), cookieParser());
+app.use((req, res, next) => {
+  if (
+    !["GET", "HEAD", "OPTIONS"].includes(req.method) &&
+    req.headers.origin &&
+    req.headers.origin !== options.clientOrigin
+  )
+    return res.status(403).json({ message: "Origin not allowed" });
+  next();
 });
+app.use(
+  "/api/auth/setup",
+  rateLimit({
+    windowMs: 15 * 60000,
+    limit: 20,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+  }),
+);
+let workspace;
+if (process.env.PRIVATE_MONGODB_URI) {
+  workspace = await privateWorkspace(process.env.PRIVATE_MONGODB_URI, options);
+  installPrivateRouting(app, workspace, options);
+}
+app.use(createApp(options));
 app.get("/api/demo-info", (_req, res) =>
   res.json({ demo: true, public: production }),
 );
@@ -40,6 +71,7 @@ const server = app.listen(process.env.PORT || 4000, "0.0.0.0", () =>
 );
 async function stop() {
   await new Promise((resolve) => server.close(resolve));
+  if (workspace) await workspace.connection.close();
   await mongoose.disconnect();
   await mongo.stop();
   process.exit(0);

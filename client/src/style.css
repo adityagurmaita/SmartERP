@@ -2451,3 +2451,28 @@ select,
   min-height: 72px;
   flex-wrap: wrap;
 }
+
+.private-setup-page {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px 16px;
+}
+.private-setup-card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--surface, #fff);
+  border: 1px solid var(--border, #dae5f0);
+  border-radius: 20px;
+  padding: 24px;
+  box-shadow: 0 12px 34px #183e6010;
+}
+.private-setup-card h1 {
+  font-size: 26px;
+  line-height: 1.25;
+  margin: 0 0 16px;
+}
+.private-setup-card p {
+  line-height: 1.6;
+}
