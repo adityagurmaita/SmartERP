@@ -10,11 +10,14 @@ import { fileURLToPath } from "node:url";
 import { randomBytes } from "node:crypto";
 import { MongoMemoryServer } from "mongodb-memory-server";
 import { createApp } from "./app.js";
+import * as demoModels from "./models.js";
+import { seedCollege } from "./college-demo.js";
 import { seed } from "./seed.js";
 const production = process.env.NODE_ENV === "production";
 const mongo = await MongoMemoryServer.create();
 await mongoose.connect(mongo.getUri());
 await seed();
+await seedCollege(demoModels);
 const options = {
   jwtSecret: randomBytes(48).toString("hex"),
   teacherCode: production ? undefined : "DEMO-FACULTY-2026",

@@ -3830,3 +3830,15 @@ html[data-theme="dark"] .attendance-warning {
     min-width: 600px;
   }
 }
+.college-admin .panel > a.small-btn {
+  display: inline-block;
+  margin: 8px 0 16px;
+}
+.college-admin .panel > label {
+  display: block;
+  margin-top: 12px;
+}
+.college-admin .panel > label textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
