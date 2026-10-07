@@ -1,5 +1,9 @@
 # SmartERP
 
+![MERN](https://img.shields.io/badge/stack-MERN-087bb5) ![Demo](https://img.shields.io/badge/status-live_demo-259f7a)
+
+**[Open the live demo](https://smarterp-y59t.onrender.com/) · React · Express · MongoDB · Node.js**
+
 A modern student and teacher college workspace built with MongoDB, Express, React and Node. This is an independent application, not an integration with or copy of a university ERP. Screenshots use fictional demo records.
 
 ## Quick start: local demo without installing MongoDB
@@ -32,7 +36,7 @@ Local demo teacher registration code: `DEMO-FACULTY-2026`. These credentials are
 
 Teachers can create courses, enroll a registered student by email, enter attendance totals and grade points, publish assignments, upload briefs, download submissions and add grades/feedback. Students see only enrolled courses and their own submissions.
 
-## Features in this version
+## ✨ Features in this version
 
 - Student and teacher signup/sign-in. JWT session in HttpOnly cookies, bcrypt password hashes, restricted faculty invite code, rate limiting, origin checks and course-level permissions.
 - Responsive student and teacher dashboards. Light and dark themes saved to the browser.
@@ -43,10 +47,10 @@ Teachers can create courses, enroll a registered student by email, enter attenda
 - Attendance entry by teacher and student calculator. Advice uses **at least 75%**, not strictly greater than 75%. `floor(attended / 0.75 - total)` is the safe number of future missed classes; the recovery count assumes consecutive attendance.
 - Credit-weighted CGPA from published grade points on a 0-10 scale. Confirm your university's grading rules before using this as an official transcript. Only graded courses count; multi-semester transcript management is not yet included.
 - Campus notices.
-- Pending-work assistant in Hindi/English: instant response from live assignment/submission records. **This is a rules-based assistant, not an external AI integration.** All prompts currently return the same pending-work summary.
+- Local Hindi/English copilot intents for profile, roll/enrollment, attendance, grades/CGPA, fees and pending assignments. Unknown personal questions fall back clearly. Optional Groq general-question AI is restricted to the private workspace; stored profile and academic records are not sent to Groq. Only the question and a fixed generic prompt are sent. Keep general questions free of private details.
 - Web app manifest and mobile app-style layout. **No service worker, offline authenticated data, push notifications or background alerts yet.**
 
-## Project layout
+## 📁 Project layout
 
 ```text
 client/
@@ -67,7 +71,7 @@ server/
 screenshots/            inspected desktop and mobile captures
 ```
 
-## Test and build
+## ✅ Test and build
 
 ```sh
 npm test
@@ -106,7 +110,7 @@ This source is runnable locally; it is not a deployed university production syst
 
 Before use with real student records: security review, per-account teacher invitations or admin provisioning, email verification/password reset, audit trail, CSRF hardening for the deployment, file-content inspection and malware scanning, storage quotas, object storage, robust upload replacement transaction/concurrency handling, monitoring/backups, record correction/deletion, pagination and institution/semester separation. File allowlisting currently checks extensions, not content; downloaded files are attachments and should not be trusted. Notices are global within this single-institution app. There is no integration with an existing college database.
 
-Next phases: real AI provider with scoped record access, scheduled/push/email alerts, semester-aware transcripts and CGPA rules, stronger PWA/offline support, deployment and production hardening. Do not add AI credentials to frontend code; keep any provider key server-side.
+Next phases: scheduled/push/email alerts, semester-aware transcripts and CGPA rules, stronger PWA/offline support and production hardening. Do not add AI credentials to frontend code; keep any provider key server-side.
 
 ## Render fictional-data demo
 
@@ -120,7 +124,7 @@ The latest visual theme is based on observed plain blue panels, module grid and 
 
 Clean page-based navigation with browser history and direct module paths; separate student fee subsections and library menus; day-based weekly timetable; credit-weighted grade and recorded attendance charts; fictional exam datesheet, seating and calendar-file export. Faculty can add classes and exams for their courses. Class time/course and room overlaps are rejected. Students can renew their own issued books once before the due date.
 
-Library issue/return endpoints are admin-only; the accounts-admin UI remains fee-focused. The demo does not charge fines, send background reminders or use a connected AI provider. Attendance and grade charts describe existing records, not invented semester trends.
+Library issue/return endpoints are admin-only; the accounts-admin UI remains fee-focused. The demo does not charge fines, send background reminders or give general AI to shared-demo accounts. Attendance and grade charts describe existing records, not invented semester trends.
 
 ### Student simulated checkout
 
@@ -141,3 +145,7 @@ Accounts admins can configure a base fee, manual fine, manual scholarship and op
 ### Optional isolated private demo workspace
 
 Set PRIVATE_MONGODB_URI only in the host's private environment to use a separate persistent Mongo database for a provisioned private student. The shared fictional demo still resets. Realm-bound sessions and separate models keep the public demo teacher/admin out of the private database. Provisioning is server-side only; public registration stays disabled. A random 24-hour single-use setup link stores only a token hash; the student sets their password directly, saved bcrypt-hashed. Do not put personal account details, setup tokens or database credentials in source. This is still a fictional-record demo, not an audited production ERP. Private in-app review by the public demo admin is intentionally unavailable. Upload storage remains ephemeral; do not upload real documents.
+
+## General AI configuration
+
+Set `GROQ_API_KEY` server-side to enable general questions in the isolated private workspace. The default model is `openai/gpt-oss-20b`; `GROQ_MODEL` can override it. Public shared-demo accounts cannot call Groq. Free-tier limits and timeouts show an unavailable message; local record answers remain available. No browsing, tool execution or record mutations are offered by the AI.
