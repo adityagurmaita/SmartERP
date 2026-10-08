@@ -37,6 +37,31 @@ export async function privateWorkspace(uri, options = {}) {
       usedAt: Date,
     }),
   );
+  // Security remediation: invalidate outstanding onboarding links once, without
+  // changing any password or active account. Future links are unaffected.
+  const migrations = connection.collection("securitymigrations");
+  const migrationId = "revoke-exposed-onboarding-links-2026-10-08";
+  if (!(await migrations.findOne({ _id: migrationId }))) {
+    const revokedAt = new Date();
+    const result = await Setup.updateMany(
+      { usedAt: null },
+      { $set: { usedAt: revokedAt } },
+    );
+    await migrations.updateOne(
+      { _id: migrationId },
+      {
+        $setOnInsert: {
+          completedAt: revokedAt,
+          revokedCount: result.modifiedCount,
+        },
+      },
+      { upsert: true },
+    );
+    console.log(
+      "Setup-link security revocation complete; outstanding links invalidated:",
+      result.modifiedCount,
+    );
+  }
   const app = createApp({
     ...options,
     models,

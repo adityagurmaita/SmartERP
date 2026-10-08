@@ -1807,7 +1807,12 @@ function SetupPassword() {
   const [error, setError] = useState(""),
     [done, setDone] = useState(false),
     [busy, setBusy] = useState(false);
-  const token = new URLSearchParams(location.hash.slice(1)).get("token");
+  const [token] = useState(() => {
+    const value = new URLSearchParams(location.hash.slice(1)).get("token");
+    // Keep the one-time token only in component memory, never the restored URL.
+    if (location.hash) history.replaceState({}, "", "/Setup");
+    return value;
+  });
   useEffect(() => {
     document.querySelector('meta[name="referrer"]')?.remove();
     const m = document.createElement("meta");
